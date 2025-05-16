@@ -1,4 +1,4 @@
-unit Unit1;
+﻿unit Unit1;
 
 interface
 
@@ -12,7 +12,7 @@ uses
   ImportSetting,
   Vcl.ImgList, Vcl.Buttons, Vcl.Menus, Winapi.Winsock, System.Types,
   System.IOUtils, System.StrUtils, IpHlpApi, IpTypes, Vcl.ButtonGroup,
-  Vcl.ToolWin, System.RegularExpressions, Math ,Clipbrd
+  Vcl.ToolWin, System.RegularExpressions, Math, Clipbrd
 
     ;
 
@@ -64,7 +64,8 @@ type
     procedure Managefile;
     procedure Checkvalues;
     procedure LogRowToCSV(Row: Integer; ErrorMessage: string);
-    procedure CalculateMinutesDifference(const StartTime, EndTime: String; out TotalMinutes: Integer);
+    procedure CalculateMinutesDifference(const StartTime, EndTime: String;
+      out TotalMinutes: Integer);
     procedure Refresh1Click(Sender: TObject);
     procedure Copytocsv1Click(Sender: TObject);
     procedure SpeedButton3Click(Sender: TObject);
@@ -97,34 +98,36 @@ type
     procedure UpdateErrorColumn(Row: Integer; ErrorMessage: string);
     procedure ClearStringGrid(Grid: TStringGrid);
     function RoundDownTo(Value: Double; Decimals: Integer): Double;
-    //procedure LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
+    procedure UpdateAllKanryoFlg(KmseqNo, SetNo: Integer);
+    // procedure LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
   end;
 
 var
   Form1: TForm1;
-    NOs             : Integer;
-    SEIZONOs        : Integer;
-    BUNMs           : Integer;
-    KEIKOTEICDs     : Integer;
-    KIKAICDs        : Integer;
-    KIKAINMs        : Integer;
-    TANTOCDs        : Integer;
-    TANTONMs        : Integer;
-    YMDSs           : Integer;
-    YMDEs           : Integer;
-    JKBNs           : Integer;
-    JMAEDANHs       : Integer;
-    JYUJINHs        : Integer;
-    JMUJINHs        : Integer;
-    JATODANHs       : Integer;
-    STATUSs,FILENAMEs: Integer;
+  NOs: Integer;
+  SEIZONOs: Integer;
+  BUNMs: Integer;
+  KEIKOTEICDs: Integer;
+  KIKAICDs: Integer;
+  KIKAINMs: Integer;
+  TANTOCDs: Integer;
+  TANTONMs: Integer;
+  YMDSs: Integer;
+  YMDEs: Integer;
+  JKBNs: Integer;
+  JMAEDANHs: Integer;
+  JYUJINHs: Integer;
+  JMUJINHs: Integer;
+  JATODANHs: Integer;
+  STATUSs, FILENAMEs: Integer;
 
   CodeA, CodeB, CodeC: Integer;
   MovePath, ErrorMessageText: String;
   Operation, HasErrorFileChoice, HasLogFile, ErrorPath, FolderPath, Error,
-    PathErrorCSV, ResultPathCSV, HasResult , FileNameStr: String;
+    PathErrorCSV, ResultPathCSV, HasResult, FileNameStr: String;
   CurrentDateTime: TDateTime;
-  Hours, Minutes,TotalMinutes,RowCheck: Integer;
+  Hours, Minutes, TotalMinutes, RowCheck: Integer;
+
 const
   MAX_FILE_NAME_LENGTH = 100;
 
@@ -236,11 +239,11 @@ end;
 
 procedure TForm1.Refresh1Click(Sender: TObject);
 begin
-     //clear
-    ClearStringGrid(StringGridCSV);
-    SpeedButton1.Enabled := True;
-    SpeedButtonIMP.Enabled := false;
-     LabelOK.Caption := '';
+  // clear
+  ClearStringGrid(StringGridCSV);
+  SpeedButton1.Enabled := True;
+  SpeedButtonIMP.Enabled := false;
+  LabelOK.Caption := '';
 end;
 
 procedure TForm1.CheckGRDFolder;
@@ -293,7 +296,7 @@ begin
   ReadSettings;
 
   // Check for AutoRun parameter
-  IsAutoRun := False;
+  IsAutoRun := false;
   if ParamCount > 0 then
   begin
     Param := LowerCase(ParamStr(1));
@@ -376,26 +379,26 @@ begin
     Timer1.OnTimer := Timer1Timer;
 
     if IsAutoRun then
-      begin
-        try
-          LabelOK.Caption := '';
-          ReadSettings;
-          ClearStringGrid(StringGridCSV);
-          LoadCSVFilesIntoGrid(EditFolderPath.Text);
+    begin
+      try
+        LabelOK.Caption := '';
+        ReadSettings;
+        ClearStringGrid(StringGridCSV);
+        LoadCSVFilesIntoGrid(EditFolderPath.Text);
 
-          SpeedButton1.Enabled := False;
-          CheckValues;
-          SpeedButtonIMP.Enabled := True;
+        SpeedButton1.Enabled := false;
+        Checkvalues;
+        SpeedButtonIMP.Enabled := True;
 
-          ImportDataToDatabase;
+        ImportDataToDatabase;
 
-          SpeedButton1.Enabled := True;
-          SpeedButtonIMP.Enabled := False;
+        SpeedButton1.Enabled := True;
+        SpeedButtonIMP.Enabled := false;
 
-        finally
-          Application.Terminate; // Close the program after the AutoRun process
-        end;
+      finally
+        Application.Terminate; // Close the program after the AutoRun process
       end;
+    end;
 
   finally
     WSACleanup;
@@ -403,41 +406,40 @@ begin
   end;
 end;
 
-
 procedure TForm1.FormShow(Sender: TObject);
 var
   i: Integer;
   AutoExportCheck: Boolean;
 begin
   CheckGRDFolder;
-  AutoExportCheck := False;
+  AutoExportCheck := false;
   for i := 1 to ParamCount do
   begin
     if UpperCase(ParamStr(i)) = '/AUTO' then
-      begin
-        try
-           //Read
-             LabelOK.Caption :=  '';
-              ReadSettings;
-              ClearStringGrid(StringGridCSV);
-              LoadCSVFilesIntoGrid(EditFolderPath.Text);
-              SpeedButton1.Enabled := false;
-             CheckValues;
-              SpeedButtonIMP.Enabled := True;
-           //Import
-             // ImportDataToDatabase;
-              SpeedButton1.Enabled := True;
-              SpeedButtonIMP.Enabled := false;
-           WriteLog('AutoExport Success');
-          except
-              on E: Exception do
-              begin
-                WriteLog('Error in AutoExport : ' + E.Message);
-              end;
-          end;
-          Application.Terminate;
-          Break;
+    begin
+      try
+        // Read
+        LabelOK.Caption := '';
+        ReadSettings;
+        ClearStringGrid(StringGridCSV);
+        LoadCSVFilesIntoGrid(EditFolderPath.Text);
+        SpeedButton1.Enabled := false;
+        Checkvalues;
+        SpeedButtonIMP.Enabled := True;
+        // Import
+        // ImportDataToDatabase;
+        SpeedButton1.Enabled := True;
+        SpeedButtonIMP.Enabled := false;
+        WriteLog('AutoExport Success');
+      except
+        on E: Exception do
+        begin
+          WriteLog('Error in AutoExport : ' + E.Message);
+        end;
       end;
+      Application.Terminate;
+      Break;
+    end;
   end;
 end;
 
@@ -529,13 +531,13 @@ var
   LogFile: TextFile;
   LineCount: Integer;
   TempList: TStringList;
-   CurrentDate: string;
+  CurrentDate: string;
 begin
   if HasErrorFileChoice = '1' then
   begin
 
     CurrentDate := FormatDateTime('YYYYMMDD', Now);
-    LogFileName := ErrorPath +'/'+ CurrentDate + '_MW10IMP100_log.log';
+    LogFileName := ErrorPath + '/' + CurrentDate + '_MW10IMP100_log.log';
 
     // Counting the number of lines in the log file
     LineCount := 0;
@@ -626,11 +628,11 @@ end;
 
 procedure TForm1.SpeedButton3Click(Sender: TObject);
 begin
-       //clear
-     ClearStringGrid(StringGridCSV);
-       SpeedButton1.Enabled := True;
-      SpeedButtonIMP.Enabled := false;
-      LabelOK.Caption := '';
+  // clear
+  ClearStringGrid(StringGridCSV);
+  SpeedButton1.Enabled := True;
+  SpeedButtonIMP.Enabled := false;
+  LabelOK.Caption := '';
 end;
 
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
@@ -682,17 +684,17 @@ end;
 
 procedure TForm1.ButtonReadClick(Sender: TObject);
 begin
-  LabelOK.Caption :=  '';
+  LabelOK.Caption := '';
   ReadSettings;
   ClearStringGrid(StringGridCSV);
   LoadCSVFilesIntoGrid(EditFolderPath.Text);
   SpeedButton1.Enabled := false;
-  CheckValues;
+  Checkvalues;
   SpeedButtonIMP.Enabled := True;
 end;
 
-
-procedure Tform1.CalculateMinutesDifference(const StartTime, EndTime: String; out TotalMinutes: Integer);
+procedure TForm1.CalculateMinutesDifference(const StartTime, EndTime: String;
+  out TotalMinutes: Integer);
 var
   StartDT, EndDT: TDateTime;
   FormatSettings: TFormatSettings;
@@ -712,9 +714,9 @@ begin
   TotalMinutes := MinutesBetween(StartDT, EndDT);
 end;
 
-procedure TForm1.CheckValues;
+procedure TForm1.Checkvalues;
 var
-  OKCount, NGCount, i,j: Integer;
+  OKCount, NGCount, i, j: Integer;
   IniFile: TIniFile;
   IniFileName: string;
   CD2Value: string;
@@ -738,11 +740,11 @@ var
   AllEmpty: Boolean;
   TempDate: TDateTime;
   TempInt: Integer;
-    IsAutoRun: Boolean;
+  IsAutoRun: Boolean;
   Param: string;
 
 begin
-  IsAutoRun := False;
+  IsAutoRun := false;
 
   // Check for AutoRun parameter
   if ParamCount > 0 then
@@ -760,8 +762,8 @@ begin
   // Check if the UniConnection is connected
   if not UniConnection.Connected then
   begin
-  if not IsAutoRun then
-    ShowMessage('Error: Database connection .');
+    if not IsAutoRun then
+      ShowMessage('Error: Database connection .');
     WriteLog('Error: Database connection .');
     Exit;
   end;
@@ -781,280 +783,280 @@ begin
     begin
       // Skip completely empty rows (excluding STATUSs column)
       AllEmpty := True;
-      for j := 1 to StringGridCSV.ColCount - 1 do  // Skip STATUSs column
+      for j := 1 to StringGridCSV.ColCount - 1 do // Skip STATUSs column
       begin
         if Trim(StringGridCSV.Cells[j, i]) <> '' then
         begin
-          AllEmpty := False;
+          AllEmpty := false;
           Break;
         end;
       end;
 
       if AllEmpty then
       begin
-          StringGridCSV.Cells[NOs, i] := 'NG';
+        StringGridCSV.Cells[NOs, i] := 'NG';
         Continue;
       end;
 
       // Count STATUS values
-     if StringGridCSV.Cells[NOs, i] = 'NG' then
-     begin
+      if StringGridCSV.Cells[NOs, i] = 'NG' then
+      begin
         Continue;
-     end;
+      end;
 
-    //Check ini file
-      IniFileName := ExtractFilePath(Application.ExeName) + '/Setup/DRLOGIN.ini';
-        if not FileExists(IniFileName) then
+      // Check ini file
+      IniFileName := ExtractFilePath(Application.ExeName) +
+        '/Setup/DRLOGIN.ini';
+      if not FileExists(IniFileName) then
+      begin
+        UpdateErrorColumn(i, 'INI file not found');
+      end;
+      IniFile := TIniFile.Create(IniFileName);
+      try
+        CD2Value := IniFile.ReadString('TLogOnForm', 'CD2', '');
+        if CD2Value = '' then
         begin
-          UpdateErrorColumn(i, 'INI file not found');
+          UpdateErrorColumn(i, 'CD2 value not found');
         end;
-        IniFile := TIniFile.Create(IniFileName);
+      finally
+        IniFile.Free;
+      end;
+
+      // Get ComputerName,MacAddress,WindowsUsername,ExecutableName,Executable Version
+      // Get Computer Name
+      Size := MAX_COMPUTERNAME_LENGTH + 1;
+      if not GetComputerName(Buffer, Size) then
+      begin
+        UpdateErrorColumn(i, 'Failed to get computer name');
+      end;
+      CompName := Buffer;
+      // Get MAC Address
+      MACAddr := GetMACAddress;
+      if MACAddr = '' then
+      begin
+        UpdateErrorColumn(i, 'Failed to get MAC address');
+
+      end;
+      // Get Windows Username
+      WinUserName := GetWindowsUserName;
+      if WinUserName = '' then
+      begin
+        UpdateErrorColumn(i, 'Failed to get Windows username');
+
+      end;
+      // Get Executable Name
+      ExeName := ExtractFileName(Application.ExeName);
+      if ExeName = '' then
+      begin
+        UpdateErrorColumn(i, 'Failed to get executable name');
+
+      end;
+      // Get Executable Version
+      ExeVersion := GetFileVersion(Application.ExeName);
+      if ExeVersion = '' then
+      begin
+        UpdateErrorColumn(i, 'Failed to get executable version');
+
+      end;
+
+      SeizonoValue := StringGridCSV.Cells[SEIZONOs, i];
+      BUNMValue := StringGridCSV.Cells[BUNMs, i];
+      KEIKOTEICDValue := StringGridCSV.Cells[KEIKOTEICDs, i];
+      KIKAICDValue := StringGridCSV.Cells[KIKAICDs, i];
+      KIKAINMValue := StringGridCSV.Cells[KIKAINMs, i];
+      TANTOCDValue := StringGridCSV.Cells[TANTOCDs, i];
+      TANTONMValue := StringGridCSV.Cells[TANTONMs, i];
+      YMDSValue := StringGridCSV.Cells[YMDSs, i];
+      YMDEValue := StringGridCSV.Cells[YMDEs, i];
+      JKBNValue := StringGridCSV.Cells[JKBNs, i];
+      JMAEDANHValue := StringGridCSV.Cells[JMAEDANHs, i];
+      JYUJINHValue := StringGridCSV.Cells[JYUJINHs, i];
+      JMUJINHValue := StringGridCSV.Cells[JMUJINHs, i];
+      JATODANHValue := StringGridCSV.Cells[JATODANHs, i];
+
+      FormatSettings := TFormatSettings.Create;
+      FormatSettings.DateSeparator := '/';
+      FormatSettings.TimeSeparator := ':';
+      FormatSettings.ShortDateFormat := 'MM/dd/yyyy';
+      FormatSettings.LongTimeFormat := 'hh:nn:ss AMPM';
+
+      // YMDSValue check
+      if (YMDSValue = '') or not TryStrToDateTime(YMDSValue, TempDate,
+        FormatSettings) then
+      begin
+        UpdateErrorColumn(i, 'Invalid or Missing YMDSValue Format');
+
+        Exit;
+      end;
+
+      // YMDEValue check
+      if (YMDEValue = '') or not TryStrToDateTime(YMDEValue, TempDate,
+        FormatSettings) then
+      begin
+        UpdateErrorColumn(i, 'Invalid or Missing YMDEValue Format');
+
+        Exit;
+      end;
+
+      try
+        // seizono
+        InsertQuery.SQL.Text :=
+          'SELECT COUNT(*) AS Count FROM SEIZOMST WHERE SEIZONO = :seizono';
+        InsertQuery.ParamByName('seizono').AsString := SeizonoValue;
+        InsertQuery.Open;
+        if (SeizonoValue = '') or (InsertQuery.FieldByName('Count').AsInteger
+          <= 0) then
+        begin
+          UpdateErrorColumn(i, 'SEIZONO is Invalid');
+
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'SEIZONO SQL is Invalid');
+
+        end;
+      end;
+
+      try
+        // WorkerCD
+        InsertQuery.SQL.Text :=
+          'SELECT COUNT(*) AS Count FROM tantomst WHERE tantocd = :tantocd';
+        InsertQuery.ParamByName('tantocd').AsString := TANTOCDValue;
+        InsertQuery.Open;
+        if (TANTOCDValue = '') or (InsertQuery.FieldByName('Count').AsInteger
+          <= 0) then
+        begin
+          UpdateErrorColumn(i, 'Employee Code is Invalid');
+
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'WorkerCD SQL is Invalid');
+
+        end;
+      end;
+
+      try
+        // BUNM
+        InsertQuery.SQL.Text :=
+          'SELECT COUNT(*) AS Count FROM BUHINKOMST WHERE bunm = :bunm';
+        InsertQuery.ParamByName('bunm').AsString := BUNMValue;
+        InsertQuery.Open;
+        if (BUNMValue = '') or (InsertQuery.FieldByName('Count').AsInteger <= 0)
+        then
+        begin
+          UpdateErrorColumn(i, 'BUNM is Invalid');
+
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'BUNM SQL is Invalid');
+
+        end;
+      end;
+
+      try
+        // KEIKOTEICD
+        InsertQuery.SQL.Text :=
+          'SELECT COUNT(*) AS Count FROM kouteikmst WHERE KEIKOTEICD = :KEIKOTEICD';
+        InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.Open;
+        if (KEIKOTEICDValue = '') or
+          (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+        begin
+          UpdateErrorColumn(i, 'KEIKOTEICD is Invalid');
+
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'KEIKOTEICD SQL is Invalid');
+
+        end;
+      end;
+
+      if KIKAICDValue <> '' then
+      begin
         try
-          CD2Value := IniFile.ReadString('TLogOnForm', 'CD2', '');
-          if CD2Value = '' then
-          begin
-            UpdateErrorColumn(i, 'CD2 value not found');
-          end;
-        finally
-          IniFile.Free;
-        end;
-
-    // Get ComputerName,MacAddress,WindowsUsername,ExecutableName,Executable Version
-        // Get Computer Name
-        Size := MAX_COMPUTERNAME_LENGTH + 1;
-        if not GetComputerName(Buffer, Size) then
-        begin
-          UpdateErrorColumn(i, 'Failed to get computer name');
-        end;
-        CompName := Buffer;
-        // Get MAC Address
-        MACAddr := GetMACAddress;
-        if MACAddr = '' then
-        begin
-          UpdateErrorColumn(i, 'Failed to get MAC address');
-
-        end;
-        // Get Windows Username
-        WinUserName := GetWindowsUserName;
-        if WinUserName = '' then
-        begin
-          UpdateErrorColumn(i, 'Failed to get Windows username');
-
-        end;
-        // Get Executable Name
-        ExeName := ExtractFileName(Application.ExeName);
-        if ExeName = '' then
-        begin
-          UpdateErrorColumn(i, 'Failed to get executable name');
-
-
-        end;
-        // Get Executable Version
-        ExeVersion := GetFileVersion(Application.ExeName);
-        if ExeVersion = '' then
-        begin
-          UpdateErrorColumn(i, 'Failed to get executable version');
-
-        end;
-
-        SeizonoValue := StringGridCSV.Cells[SEIZONOs, i];
-        BUNMValue := StringGridCSV.Cells[BUNMs, i];
-        KEIKOTEICDValue := StringGridCSV.Cells[KEIKOTEICDs, i];
-        KIKAICDValue := StringGridCSV.Cells[KIKAICDs, i];
-        KIKAINMValue := StringGridCSV.Cells[KIKAINMs, i];
-        TANTOCDValue := StringGridCSV.Cells[TANTOCDs, i];
-        TANTONMValue := StringGridCSV.Cells[TANTONMs, i];
-        YMDSValue := StringGridCSV.Cells[YMDSs, i];
-        YMDEValue := StringGridCSV.Cells[YMDEs, i];
-        JKBNValue := StringGridCSV.Cells[JKBNs, i];
-        JMAEDANHValue := StringGridCSV.Cells[JMAEDANHs, i];
-        JYUJINHValue := StringGridCSV.Cells[JYUJINHs, i];
-        JMUJINHValue := StringGridCSV.Cells[JMUJINHs, i];
-        JATODANHValue := StringGridCSV.Cells[JATODANHs, i];
-
-          FormatSettings := TFormatSettings.Create;
-          FormatSettings.DateSeparator := '/';
-          FormatSettings.TimeSeparator := ':';
-          FormatSettings.ShortDateFormat := 'MM/dd/yyyy';
-          FormatSettings.LongTimeFormat := 'hh:nn:ss AMPM';
-
-          // YMDSValue check
-          if (YMDSValue = '') or not TryStrToDateTime(YMDSValue, TempDate, FormatSettings) then
-          begin
-            UpdateErrorColumn(i, 'Invalid or Missing YMDSValue Format');
-
-            Exit;
-          end;
-
-          // YMDEValue check
-          if (YMDEValue = '') or not TryStrToDateTime(YMDEValue, TempDate, FormatSettings) then
-          begin
-            UpdateErrorColumn(i, 'Invalid or Missing YMDEValue Format');
-
-            Exit;
-          end;
-
-        try
-          // seizono
+          // KIKAICD
           InsertQuery.SQL.Text :=
-            'SELECT COUNT(*) AS Count FROM SEIZOMST WHERE SEIZONO = :seizono';
-          InsertQuery.ParamByName('seizono').AsString := SEIZONOValue;
+            'SELECT COUNT(*) AS Count FROM KIKAIMST WHERE KIKAICD = :KIKAICD';
+          InsertQuery.ParamByName('KIKAICD').AsString := KIKAICDValue;
           InsertQuery.Open;
-          if (SEIZONOValue = '') or (InsertQuery.FieldByName('Count').AsInteger
-            <= 0) then
+          if (KIKAICDValue = '') or
+            (InsertQuery.FieldByName('Count').AsInteger <= 0) then
           begin
-            UpdateErrorColumn(i, 'SEIZONO is Invalid');
+            UpdateErrorColumn(i, 'KIKAICD is Invalid');
 
           end;
         except
           on E: Exception do
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(i, 'SEIZONO SQL is Invalid');
+            UpdateErrorColumn(i, 'KIKAICD SQL is Invalid');
 
           end;
         end;
+      end;
+      // JKBN
+      if (JKBNValue = '') or not TryStrToInt(JKBNValue, TempInt) then
+      begin
+        UpdateErrorColumn(i, 'JKBN not an integer');
 
+      end;
 
-          try
-          // WorkerCD
-          InsertQuery.SQL.Text :=
-            'SELECT COUNT(*) AS Count FROM tantomst WHERE tantocd = :tantocd';
-          InsertQuery.ParamByName('tantocd').AsString := TANTOCDValue;
-          InsertQuery.Open;
-          if (TANTOCDValue = '') or (InsertQuery.FieldByName('Count').AsInteger
-            <= 0) then
-          begin
-            UpdateErrorColumn(i, 'Employee Code is Invalid');
+      // JMAEDANH
+      if (JMAEDANHValue = '') or not TryStrToInt(JMAEDANHValue, TempInt) then
+      begin
+        UpdateErrorColumn(i, 'JMAEDANH not an integer');
 
-          end;
-        except
-          on E: Exception do
-          begin
-            // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(i, 'WorkerCD SQL is Invalid');
+      end;
 
-          end;
-        end;
+      // JYUJINH
+      if (JYUJINHValue = '') or not TryStrToInt(JYUJINHValue, TempInt) then
+      begin
+        UpdateErrorColumn(i, 'JYUJINH not an integer');
 
-        try
-          // BUNM
-          InsertQuery.SQL.Text :=
-            'SELECT COUNT(*) AS Count FROM BUHINKOMST WHERE bunm = :bunm';
-          InsertQuery.ParamByName('bunm').AsString := BUNMValue;
-          InsertQuery.Open;
-          if (BUNMValue = '') or (InsertQuery.FieldByName('Count').AsInteger
-            <= 0) then
-          begin
-            UpdateErrorColumn(i, 'BUNM is Invalid');
+      end;
 
-          end;
-        except
-          on E: Exception do
-          begin
-            // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(i, 'BUNM SQL is Invalid');
+      // JMUJINH
+      if (JMUJINHValue = '') or not TryStrToInt(JMUJINHValue, TempInt) then
+      begin
+        UpdateErrorColumn(i, 'JMUJINH not an integer');
 
-          end;
-        end;
+      end;
 
+      // JATODANH
+      if (JATODANHValue = '') or not TryStrToInt(JATODANHValue, TempInt) then
+      begin
+        UpdateErrorColumn(i, 'JATODANH not an integer');
 
-        try
-          // KEIKOTEICD
-          InsertQuery.SQL.Text :=
-            'SELECT COUNT(*) AS Count FROM kouteikmst WHERE KEIKOTEICD = :KEIKOTEICD';
-          InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
-          InsertQuery.Open;
-          if (KEIKOTEICDValue = '') or (InsertQuery.FieldByName('Count').AsInteger
-            <= 0) then
-          begin
-            UpdateErrorColumn(i, 'KEIKOTEICD is Invalid');
-
-          end;
-        except
-          on E: Exception do
-          begin
-            // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(i, 'KEIKOTEICD SQL is Invalid');
-
-          end;
-        end;
-
-        if KIKAICDValue <> '' then
-        begin
-          try
-            // KIKAICD
-            InsertQuery.SQL.Text :=
-              'SELECT COUNT(*) AS Count FROM KIKAIMST WHERE KIKAICD = :KIKAICD';
-            InsertQuery.ParamByName('KIKAICD').AsString := KIKAICDValue;
-            InsertQuery.Open;
-            if (KIKAICDValue = '') or (InsertQuery.FieldByName('Count').AsInteger
-              <= 0) then
-            begin
-              UpdateErrorColumn(i, 'KIKAICD is Invalid');
-
-            end;
-          except
-            on E: Exception do
-            begin
-              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-              UpdateErrorColumn(i, 'KIKAICD SQL is Invalid');
-
-            end;
-          end;
-        end;
-         // JKBN
-        if (JKBNValue = '') or not TryStrToInt(JKBNValue, TempInt) then
-        begin
-            UpdateErrorColumn(i, 'JKBN not an integer');
-
-        end;
-
-        // JMAEDANH
-        if (JMAEDANHValue = '') or not TryStrToInt(JMAEDANHValue, TempInt) then
-        begin
-            UpdateErrorColumn(i, 'JMAEDANH not an integer');
-
-        end;
-
-        // JYUJINH
-        if (JYUJINHValue = '') or not TryStrToInt(JYUJINHValue, TempInt) then
-        begin
-            UpdateErrorColumn(i, 'JYUJINH not an integer');
-
-        end;
-
-        // JMUJINH
-        if (JMUJINHValue = '') or not TryStrToInt(JMUJINHValue, TempInt) then
-        begin
-            UpdateErrorColumn(i, 'JMUJINH not an integer');
-
-        end;
-
-        // JATODANH
-        if (JATODANHValue = '') or not TryStrToInt(JATODANHValue, TempInt) then
-        begin
-            UpdateErrorColumn(i, 'JATODANH not an integer');
-
-        end;
-        end;
+      end;
+    end;
   finally
-         for i := 1 to StringGridCSV.RowCount - 1 do
-          begin
-            if StringGridCSV.Cells[STATUSs, i] = ''  then
-            begin
-                StringGridCSV.Cells[0, i] := 'OK';
-                inc(OKCount)
-            end
-            else
-            begin
-               StringGridCSV.Cells[0, i] := 'NG';
-               inc(NGCount)
-            end;
-          end;
+    for i := 1 to StringGridCSV.RowCount - 1 do
+    begin
+      if StringGridCSV.Cells[STATUSs, i] = '' then
+      begin
+        StringGridCSV.Cells[0, i] := 'OK';
+        inc(OKCount)
+      end
+      else
+      begin
+        StringGridCSV.Cells[0, i] := 'NG';
+        inc(NGCount)
+      end;
+    end;
 
-          // Display the counts in the labels
-    LabelOK.Caption := 'OK: ' + IntToStr(OKCount) +' NG: ' + IntToStr(NGCount);
+    // Display the counts in the labels
+    LabelOK.Caption := 'OK: ' + IntToStr(OKCount) + ' NG: ' + IntToStr(NGCount);
     UniConnection.Rollback;
     InsertQuery.Free;
     ProgressBar1.Position := 0; // Reset the progress bar
@@ -1067,31 +1069,34 @@ var
   InsertQuery: TUniQuery;
   ImportCount, SkipCount, ErrorCount: Integer;
   NewJDSEQNO: Integer;
-  SeizonoValue, BunmValue, BucdValue, Gkoteicd, MachValue, Jigucd, Tantocd: string;
+  SeizonoValue, BUNMValue, BucdValue, Gkoteicd, MachValue, Jigucd,
+    Tantocd: string;
   FormattedDateTime, FormattedDateEnd: string;
   JhValue, MinMan, MinMach, GHIMOKUCDValue, Sagyoh, Kikaikadoh: Integer;
-  YujintankaValue, KikaitankaValue, KoteitankaValue, YujinkinValue, MujinkinValue, KinsumValue: Double;
+  YujintankaValue, KikaitankaValue, KoteitankaValue, YujinkinValue,
+    MujinkinValue, KinsumValue: Double;
   Bikou, Jisekibikou: string;
   Tourokuymd: TDateTime;
-  CD2Value,KEIKOTEICDValue,GkoteicdValue: string;
+  CD2Value, KEIKOTEICDValue, GkoteicdValue: string;
   IniFile: TIniFile;
   IniFileName: string;
   CompName, MACAddr, WinUserName, ExeName, ExeVersion: string;
-  Buffer: array [0..MAX_COMPUTERNAME_LENGTH + 1] of Char;
+  Buffer: array [0 .. MAX_COMPUTERNAME_LENGTH + 1] of Char;
   Size: DWORD;
   FormatSettings: TFormatSettings;
-  MaxJDSEQNO,CountOKRows :integer;
- JMAEDANHValue,JYUJINHValue,JMUJINHValue,JATODANHValue : integer;
-  KIKAICDValue, KIKAINMValue, TANTOCDValue, TANTONMValue,KMSEQNOValue : string;
-  YMDSValue, YMDEValue,BUNOValue,BUSEQNOValue,koteiseqnoValue,koteinoValue,keihValue,suryoValue: string;
+  MaxJDSEQNO, CountOKRows: Integer;
+  JMAEDANHValue, JYUJINHValue, JMUJINHValue, JATODANHValue: Integer;
+  KIKAICDValue, KIKAINMValue, TANTOCDValue, TANTONMValue, KMSEQNOValue: string;
+  YMDSValue, YMDEValue, BUNOValue, BUSEQNOValue, koteiseqnoValue, koteinoValue,
+    keihValue, suryoValue: string;
   JKBNValue: string;
   SQL: string;
   IsAutoRun: Boolean;
   Param: string;
-  updateYMDS : boolean;
+  updateYMDS: Boolean;
 begin
 
-  IsAutoRun := False;
+  IsAutoRun := false;
 
   // Check for AutoRun parameter
   if ParamCount > 0 then
@@ -1104,15 +1109,15 @@ begin
   // Initial checks
   if not UniConnection.Connected then
   begin
-  if not IsAutoRun then
-    ShowMessage('Error: Database not connected');
+    if not IsAutoRun then
+      ShowMessage('Error: Database not connected');
     WriteLog('Error: Database not connected');
     Exit;
   end;
 
   for i := 1 to StringGridCSV.RowCount - 1 do
   begin
-    if StringGridCSV.Cells[NOs, i] = 'OK'  then
+    if StringGridCSV.Cells[NOs, i] = 'OK' then
     begin
       inc(CountOKRows)
     end
@@ -1121,8 +1126,8 @@ begin
   // Check for at least one OK row
   if CountOKRows = 0 then
   begin
-  if not IsAutoRun then
-    ShowMessage('No valid rows with OK status found');
+    if not IsAutoRun then
+      ShowMessage('No valid rows with OK status found');
     WriteLog('No valid rows with OK status found');
     Exit;
   end;
@@ -1143,8 +1148,8 @@ begin
   IniFileName := ExtractFilePath(Application.ExeName) + '/Setup/DRLOGIN.ini';
   if not FileExists(IniFileName) then
   begin
-        if not IsAutoRun then
-          ShowMessage('INI file not found');
+    if not IsAutoRun then
+      ShowMessage('INI file not found');
     WriteLog('INI file not found');
     Exit;
   end;
@@ -1156,7 +1161,7 @@ begin
     begin
       if not IsAutoRun then
       begin
-      ShowMessage('CD2 value not found in INI file');
+        ShowMessage('CD2 value not found in INI file');
 
       end;
       WriteLog('CD2 value not found in INI file');
@@ -1170,7 +1175,6 @@ begin
   ImportCount := 0;
   SkipCount := 0;
   ErrorCount := 0;
-
 
   // Create query object
   InsertQuery := TUniQuery.Create(nil);
@@ -1191,7 +1195,7 @@ begin
       // Only process OK rows
       if StringGridCSV.Cells[NOs, i] <> 'OK' then
       begin
-        Inc(SkipCount);
+        inc(SkipCount);
         Continue;
       end;
 
@@ -1208,142 +1212,145 @@ begin
         JKBNValue := StringGridCSV.Cells[JKBNs, i];
 
         // Convert dates
-        FormattedDateTime := FormatDateTime('yyyy-mm-dd hh:nn:ss', StrToDateTime(StringGridCSV.Cells[YMDSs, i]));
-        FormattedDateEnd := FormatDateTime('yyyy-mm-dd hh:nn:ss', StrToDateTime(StringGridCSV.Cells[YMDEs, i]));
+        FormattedDateTime := FormatDateTime('yyyy-mm-dd hh:nn:ss',
+          StrToDateTime(StringGridCSV.Cells[YMDSs, i]));
+        FormattedDateEnd := FormatDateTime('yyyy-mm-dd hh:nn:ss',
+          StrToDateTime(StringGridCSV.Cells[YMDEs, i]));
 
-
-         InsertQuery.SQL.Text :=
-          ' SELECT KMSEQNO,BM.BUNO,BM.BUSEQNO,koteiseqno,koteino,km.keih,bm.suryo ' +sLineBreak+
-          '   FROM KEIKAKUMST KM                                ' +sLineBreak+
-          '   INNER JOIN BUHINKOMST BM                          ' +sLineBreak+
-          '   ON KM.SEIZONO = BM.SEIZONO AND BM.BUNO = KM.BUNO  ' +sLineBreak+
-          '  WHERE KM.SEIZONO    = :SEIZONO                     ' +sLineBreak+
-          '    AND KM.KEIKOTEICD = :KEIKOTEICD                  ' +sLineBreak+
-          '    AND BM.BUNM       = :BUNM                        ' +sLineBreak+
-          '';
-        InsertQuery.ParamByName('SEIZONO'   ).AsString := SeizonoValue;
-        InsertQuery.ParamByName('BUNM'      ).AsString := BUNMValue;
+        InsertQuery.SQL.Text :=
+          ' SELECT KMSEQNO,BM.BUNO,BM.BUSEQNO,koteiseqno,koteino,km.keih,bm.suryo '
+          + sLineBreak + '   FROM KEIKAKUMST KM                                '
+          + sLineBreak + '   INNER JOIN BUHINKOMST BM                          '
+          + sLineBreak + '   ON KM.SEIZONO = BM.SEIZONO AND BM.BUNO = KM.BUNO  '
+          + sLineBreak + '  WHERE KM.SEIZONO    = :SEIZONO                     '
+          + sLineBreak + '    AND KM.KEIKOTEICD = :KEIKOTEICD                  '
+          + sLineBreak + '    AND BM.BUNM       = :BUNM                        '
+          + sLineBreak + '';
+        InsertQuery.ParamByName('SEIZONO').AsString := SeizonoValue;
+        InsertQuery.ParamByName('BUNM').AsString := BUNMValue;
         InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
-          BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
-          BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
-          koteiseqnoValue := InsertQuery.FieldByName('koteiseqno').AsString;
-          koteinoValue := InsertQuery.FieldByName('koteino').AsString;
-          keihValue := InsertQuery.FieldByName('keih').AsString;
-          suryoValue := InsertQuery.FieldByName('suryo').AsString;
+        BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
+        BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
+        koteiseqnoValue := InsertQuery.FieldByName('koteiseqno').AsString;
+        koteinoValue := InsertQuery.FieldByName('koteino').AsString;
+        keihValue := InsertQuery.FieldByName('keih').AsString;
+        suryoValue := InsertQuery.FieldByName('suryo').AsString;
         // Check having Leveling data or not
-            if InsertQuery.IsEmpty then
-              begin
-                InsertQuery.SQL.Text :=
-                ' INSERT INTO KEIKAKUJWMST                                                                            '#13 +
-                '   (KMSEQNO,SETNO,JKBN,JDANKBN,JYMDS,JKEIZOKUYMDS,JMAEYMDE,JKIKAIYMDS,JKIKAIYMDE,JATOYMDS,JYMDE,     '#13 +
-                '   JTANTOCD,JKIKAICD,INPTANTOCD,INPYMD,UPDTANTOCD,UPDYMD,SEIZONO)                                    '#13 +
-                ' SELECT KMSEQNO,0,:JKBN,:JDANKBN,                                                                    '#13 +
-                ' TO_DATE(:JYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                          '#13 +
-                ' TO_DATE(:JKEIZOKUYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                   '#13 +
-                ' TO_DATE(:JMAEYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                       '#13 +
-                ' TO_DATE(:JKIKAIYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                     '#13 +
-                ' TO_DATE(:JKIKAIYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                     '#13 +
-                ' TO_DATE(:JATOYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                       '#13 +
-                ' TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                          '#13 +
-                ' LPAD(:JTANTOCD,8),:JKIKAICD,LPAD(:INPTANTOCD,8),:INPYMD,LPAD(:UPDTANTOCD,8),:UPDYMD,:SEIZONO        '#13 +
-                ' FROM KEIKAKUMST WHERE KMSEQNO = :KMSEQNO                                                            '#13 +
-                '';
-                updateYMDS := True;
-              end
-            //If exist then UPDATE
-            else
-              begin
-                // Check JISEKIDATA existing or not? (Case INSERTED discontinue)
-                InsertQuery.SQL.Text :=
-                  ' SELECT KMSEQNO FROM JISEKIDATA    '#13 +
-                  ' WHERE KMSEQNO = :KMSEQNO        '#13 +
-                   '';
-                InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
-                InsertQuery.ExecSQL;
-                // Case NO INSERTED Discontinue Do Update YMDS
-                if InsertQuery.IsEmpty then
-                  begin
-                    InsertQuery.SQL.Text :=
-                      ' UPDATE KEIKAKUJWMST SET                                                                             '#13 +
-                      '   JYMDS         = TO_DATE(:JYMDS, ''YYYY-MM-DD HH24:MI:SS''),                      '#13 +
-                      '   JKEIZOKUYMDS  = TO_DATE(:JKEIZOKUYMDS, ''YYYY-MM-DD HH24:MI:SS''),               '#13 +
-                      '   JMAEYMDE      = TO_DATE(:JMAEYMDE, ''YYYY-MM-DD HH24:MI:SS''),                   '#13 +
-                      '   JKIKAIYMDS    = TO_DATE(:JKIKAIYMDS, ''YYYY-MM-DD HH24:MI:SS''),                 '#13 +
-                      '   JKIKAIYMDE    = TO_DATE(:JKIKAIYMDE, ''YYYY-MM-DD HH24:MI:SS''),                 '#13 +
-                      '   JATOYMDS      = TO_DATE(:JATOYMDS, ''YYYY-MM-DD HH24:MI:SS''),                   '#13 +
-                      '   JYMDE         = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                      '#13 +
-                      '   JKBN          = :JKBN,                                                                            '#13 +
-                      '   JDANKBN       = :JDANKBN,                                                                         '#13 +
-                      '   JTANTOCD      = LPAD(:JTANTOCD,8),                                                                '#13 +
-                      '   JKIKAICD      = :JKIKAICD,                                                                        '#13 +
-                      '   SEIZONO       = :SEIZONO,                                                                         '#13 +
-                      '   UPDTANTOCD    = LPAD(:UPDTANTOCD,8),                                                              '#13 +
-                      '   UPDYMD        = SYSDATE                                                                           '#13 +
-                      ' WHERE KMSEQNO   = :KMSEQNO                                                                           '#13 +
-                      '';
-                    updateYMDS := True;
-                  end
-                // Case INSERTED Discontinue Not Update YMDS
-                else
-                  begin
-                    InsertQuery.SQL.Text :=
-                      ' UPDATE KEIKAKUJWMST SET                                                                             '#13 +
-                      '   JMAEYMDE      = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                      '#13 +
-                      '   JKIKAIYMDE    = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                    '#13 +
-                      '   JYMDE         = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                         '#13 +
-                      '   JKBN          = :JKBN,                                                                            '#13 +
-                      '   JDANKBN       = :JDANKBN,                                                                         '#13 +
-                      '   JTANTOCD      = LPAD(:JTANTOCD,8),                                                               '#13 +
-                      '   JKIKAICD      = :JKIKAICD,                                                                        '#13 +
-                      '   SEIZONO       = :SEIZONO,                                                                         '#13 +
-                      '   UPDTANTOCD    = LPAD(:UPDTANTOCD,8),                                                              '#13 +
-                      '   UPDYMD        = SYSDATE                                                                           '#13 +
-                      ' WHERE KMSEQNO   = :KMSEQNO                                                                     '#13 +
-                      '';
-                      updateYMDS := False;
-                  end;
-              end;
+        if InsertQuery.IsEmpty then
+        begin
+          InsertQuery.SQL.Text :=
+            ' INSERT INTO KEIKAKUJWMST                                                                            '#13
+            + '   (KMSEQNO,SETNO,JKBN,JDANKBN,JYMDS,JKEIZOKUYMDS,JMAEYMDE,JKIKAIYMDS,JKIKAIYMDE,JATOYMDS,JYMDE,     '#13
+            + '   JTANTOCD,JKIKAICD,INPTANTOCD,INPYMD,UPDTANTOCD,UPDYMD,SEIZONO)                                    '#13
+            + ' SELECT KMSEQNO,0,:JKBN,:JDANKBN,                                                                    '#13
+            + ' TO_DATE(:JYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                          '#13
+            + ' TO_DATE(:JKEIZOKUYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                   '#13
+            + ' TO_DATE(:JMAEYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                       '#13
+            + ' TO_DATE(:JKIKAIYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                     '#13
+            + ' TO_DATE(:JKIKAIYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                     '#13
+            + ' TO_DATE(:JATOYMDS, ''YYYY-MM-DD HH24:MI:SS''),                                       '#13
+            + ' TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                                          '#13
+            + ' LPAD(:JTANTOCD,8),:JKIKAICD,LPAD(:INPTANTOCD,8),:INPYMD,LPAD(:UPDTANTOCD,8),:UPDYMD,:SEIZONO        '#13
+            + ' FROM KEIKAKUMST WHERE KMSEQNO = :KMSEQNO                                                            '#13
+            + '';
+          updateYMDS := True;
+        end
+        // If exist then UPDATE
+        else
+        begin
+          // Check JISEKIDATA existing or not? (Case INSERTED discontinue)
+          InsertQuery.SQL.Text := ' SELECT KMSEQNO FROM JISEKIDATA    '#13 +
+            ' WHERE KMSEQNO = :KMSEQNO        '#13 + '';
+          InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
+          InsertQuery.ExecSQL;
+          // Case NO INSERTED Discontinue Do Update YMDS
+          if InsertQuery.IsEmpty then
+          begin
+            InsertQuery.SQL.Text :=
+              ' UPDATE KEIKAKUJWMST SET                                                                             '#13
+              + '   JYMDS         = TO_DATE(:JYMDS, ''YYYY-MM-DD HH24:MI:SS''),                      '#13
+              + '   JKEIZOKUYMDS  = TO_DATE(:JKEIZOKUYMDS, ''YYYY-MM-DD HH24:MI:SS''),               '#13
+              + '   JMAEYMDE      = TO_DATE(:JMAEYMDE, ''YYYY-MM-DD HH24:MI:SS''),                   '#13
+              + '   JKIKAIYMDS    = TO_DATE(:JKIKAIYMDS, ''YYYY-MM-DD HH24:MI:SS''),                 '#13
+              + '   JKIKAIYMDE    = TO_DATE(:JKIKAIYMDE, ''YYYY-MM-DD HH24:MI:SS''),                 '#13
+              + '   JATOYMDS      = TO_DATE(:JATOYMDS, ''YYYY-MM-DD HH24:MI:SS''),                   '#13
+              + '   JYMDE         = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                      '#13
+              + '   JKBN          = :JKBN,                                                                            '#13
+              + '   JDANKBN       = :JDANKBN,                                                                         '#13
+              + '   JTANTOCD      = LPAD(:JTANTOCD,8),                                                                '#13
+              + '   JKIKAICD      = :JKIKAICD,                                                                        '#13
+              + '   SEIZONO       = :SEIZONO,                                                                         '#13
+              + '   UPDTANTOCD    = LPAD(:UPDTANTOCD,8),                                                              '#13
+              + '   UPDYMD        = SYSDATE                                                                           '#13
+              + ' WHERE KMSEQNO   = :KMSEQNO                                                                           '#13
+              + '';
+            updateYMDS := True;
+          end
+          // Case INSERTED Discontinue Not Update YMDS
+          else
+          begin
+            InsertQuery.SQL.Text :=
+              ' UPDATE KEIKAKUJWMST SET                                                                             '#13
+              + '   JMAEYMDE      = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                      '#13
+              + '   JKIKAIYMDE    = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                    '#13
+              + '   JYMDE         = TO_DATE(:JYMDE, ''YYYY-MM-DD HH24:MI:SS''),                         '#13
+              + '   JKBN          = :JKBN,                                                                            '#13
+              + '   JDANKBN       = :JDANKBN,                                                                         '#13
+              + '   JTANTOCD      = LPAD(:JTANTOCD,8),                                                               '#13
+              + '   JKIKAICD      = :JKIKAICD,                                                                        '#13
+              + '   SEIZONO       = :SEIZONO,                                                                         '#13
+              + '   UPDTANTOCD    = LPAD(:UPDTANTOCD,8),                                                              '#13
+              + '   UPDYMD        = SYSDATE                                                                           '#13
+              + ' WHERE KMSEQNO   = :KMSEQNO                                                                     '#13
+              + '';
+            updateYMDS := false;
+          end;
+        end;
 
-            //Check STATUS
-            if JKBNValue = '4' then begin
-              InsertQuery.ParamByName('JKBN'        ).AsString    := '4';
-              InsertQuery.ParamByName('JDANKBN'     ).AsString    := '0';
-            end
-            else if JKBNValue = '5' then begin
-              InsertQuery.SQL.Text :=  InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
-              InsertQuery.ParamByName('JKBN'        ).AsString    := '2';
-              InsertQuery.ParamByName('JDANKBN'     ).AsString    := '9';
-              InsertQuery.ParamByName('SETNO').AsInteger := 0;
-            end
-            else if (JKBNValue = '2') OR (JKBNValue = '3') then begin // 2024/05/28 Added Case JKBN = 3
-              InsertQuery.SQL.Text :=  InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
-              InsertQuery.ParamByName('JKBN'        ).AsString    := '2';
-              InsertQuery.ParamByName('JDANKBN'     ).AsString    := '0';
-              InsertQuery.ParamByName('SETNO').AsInteger := 0;
-              // Calculate estimate enddate
-            end;
-            InsertQuery.ParamByName('KMSEQNO'   ).AsString        := KMSEQNOValue;
-            InsertQuery.ParamByName('JMAEYMDE'  ).AsString        := FormattedDateEnd;
-            InsertQuery.ParamByName('JKIKAIYMDE').AsString        := FormattedDateTime;
-            InsertQuery.ParamByName('JYMDE'     ).AsString        := FormattedDateEnd;
-            InsertQuery.ParamByName('JTANTOCD'  ).AsString        := TANTOCDValue;
-            InsertQuery.ParamByName('JKIKAICD'  ).AsString        := KIKAICDValue;
-            InsertQuery.ParamByName('SEIZONO'   ).AsString        := SeizonoValue;
-            //Check Update YMDS
-            if updateYMDS then begin
-              InsertQuery.ParamByName('JYMDS'       ).AsString    := FormattedDateTime;
-              InsertQuery.ParamByName('JKEIZOKUYMDS').AsString    := FormattedDateEnd;
-              InsertQuery.ParamByName('JKIKAIYMDS'  ).AsString    := FormattedDateEnd;
-              InsertQuery.ParamByName('JATOYMDS'    ).AsString    := FormattedDateEnd;
-            end;
-            InsertQuery.ExecSQL;
+        // Check STATUS
+        if JKBNValue = '4' then
+        begin
+          InsertQuery.ParamByName('JKBN').AsString := '4';
+          InsertQuery.ParamByName('JDANKBN').AsString := '0';
+        end
+        else if JKBNValue = '5' then
+        begin
+          InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+          InsertQuery.ParamByName('JKBN').AsString := '2';
+          InsertQuery.ParamByName('JDANKBN').AsString := '9';
+          InsertQuery.ParamByName('SETNO').AsInteger := 0;
+        end
+        else if (JKBNValue = '2') OR (JKBNValue = '3') then
+        begin // 2024/05/28 Added Case JKBN = 3
+          InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+          InsertQuery.ParamByName('JKBN').AsString := '2';
+          InsertQuery.ParamByName('JDANKBN').AsString := '0';
+          InsertQuery.ParamByName('SETNO').AsInteger := 0;
+          // Calculate estimate enddate
+        end;
+        InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
+        InsertQuery.ParamByName('JMAEYMDE').AsString := FormattedDateEnd;
+        InsertQuery.ParamByName('JKIKAIYMDE').AsString := FormattedDateTime;
+        InsertQuery.ParamByName('JYMDE').AsString := FormattedDateEnd;
+        InsertQuery.ParamByName('JTANTOCD').AsString := TANTOCDValue;
+        InsertQuery.ParamByName('JKIKAICD').AsString := KIKAICDValue;
+        InsertQuery.ParamByName('SEIZONO').AsString := SeizonoValue;
+        // Check Update YMDS
+        if updateYMDS then
+        begin
+          InsertQuery.ParamByName('JYMDS').AsString := FormattedDateTime;
+          InsertQuery.ParamByName('JKEIZOKUYMDS').AsString := FormattedDateEnd;
+          InsertQuery.ParamByName('JKIKAIYMDS').AsString := FormattedDateEnd;
+          InsertQuery.ParamByName('JATOYMDS').AsString := FormattedDateEnd;
+        end;
+        InsertQuery.ExecSQL;
 
         InsertQuery.Close;
         InsertQuery.SQL.Text :=
-            'SELECT bucd FROM BUHINKOMST WHERE bunm = :bunm';
+          'SELECT bucd FROM BUHINKOMST WHERE bunm = :bunm';
         InsertQuery.ParamByName('bunm').AsString := BUNMValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
@@ -1351,7 +1358,7 @@ begin
         InsertQuery.Close;
 
         InsertQuery.SQL.Text :=
-            'SELECT Gkoteicd FROM Kouteikmst WHERE keikoteicd = :keikoteicd';
+          'SELECT Gkoteicd FROM Kouteikmst WHERE keikoteicd = :keikoteicd';
         InsertQuery.ParamByName('keikoteicd').AsString := KEIKOTEICDValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
@@ -1362,29 +1369,29 @@ begin
         Jigucd := '';
         Tantocd := StringGridCSV.Cells[TANTOCDs, i];
 
-        //kqzii
+        // kqzii
 
-        //JMAEDANHValue	JYUJINHValue	JMUJINHValue	JATODANHValue
+        // JMAEDANHValue	JYUJINHValue	JMUJINHValue	JATODANHValue
 
         JMAEDANHValue := StrToInt(StringGridCSV.Cells[JMAEDANHs, i]);
         JYUJINHValue := StrToInt(StringGridCSV.Cells[JYUJINHs, i]);
         JMUJINHValue := StrToInt(StringGridCSV.Cells[JMUJINHs, i]);
         JATODANHValue := StrToInt(StringGridCSV.Cells[JATODANHs, i]);
 
-        JhValue := JMAEDANHValue +	JYUJINHValue +	JMUJINHValue +	JATODANHValue ;
+        JhValue := JMAEDANHValue + JYUJINHValue + JMUJINHValue + JATODANHValue;
         // Convert numeric values
 
         InsertQuery.SQL.Text :=
-            'SELECT GHIMOKUCD FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
+          'SELECT GHIMOKUCD FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
         InsertQuery.ParamByName('Gkoteicd').AsString := GkoteicdValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
           GHIMOKUCDValue := InsertQuery.FieldByName('GHIMOKUCD').AsInteger;
         InsertQuery.Close;
 
-        Sagyoh := JYUJINHValue + JMAEDANHValue + JATODANHValue; //Man
+        Sagyoh := JYUJINHValue + JMAEDANHValue + JATODANHValue; // Man
 
-        Kikaikadoh :=JMUJINHValue;  //Mach
+        Kikaikadoh := JMUJINHValue; // Mach
 
         // Convert float values
 
@@ -1415,7 +1422,7 @@ begin
         InsertQuery.ParamByName('Gkoteicd').AsString := GkoteicdValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
-           KoteitankaValue := InsertQuery.FieldByName('GTANKA').AsFloat;
+          KoteitankaValue := InsertQuery.FieldByName('GTANKA').AsFloat;
         InsertQuery.Close;
 
         KinsumValue := YujinkinValue + MujinkinValue;
@@ -1426,95 +1433,94 @@ begin
         Jisekibikou := '';
         Tourokuymd := Now;
 
-         // GET PRIMARY KEY
-              // Get the maximum JDSEQNO from the JISEKIDATA table
-         InsertQuery.SQL.Text :=
-                'SELECT MAX(JDSEQNO) AS MaxJDSEQNO FROM JISEKIDATA';
-         InsertQuery.Open;
-         if not InsertQuery.IsEmpty then
-           MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
+        // GET PRIMARY KEY
+        // Get the maximum JDSEQNO from the JISEKIDATA table
+        InsertQuery.SQL.Text :=
+          'SELECT MAX(JDSEQNO) AS MaxJDSEQNO FROM JISEKIDATA';
+        InsertQuery.Open;
+        if not InsertQuery.IsEmpty then
+          MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
         InsertQuery.Close;
-         // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
-         NewJDSEQNO := MaxJDSEQNO + 1;
+        // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
+        NewJDSEQNO := MaxJDSEQNO + 1;
 
-         // Update SEQNO in HATUBAN based on JISEKIDATA
-         InsertQuery.SQL.Text :=
-                'UPDATE HATUBAN ' +
-                'SET SEQNO = SEQNO + 1 ' +
-                'WHERE ID = ''JISEKIDATA''';
-         InsertQuery.ExecSQL;
-         UniConnection.Commit;
-
+        UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        // Update SEQNO in HATUBAN based on JISEKIDATA
+        InsertQuery.SQL.Text := 'UPDATE HATUBAN ' + 'SET SEQNO = SEQNO + 1 ' +
+          'WHERE ID = ''JISEKIDATA''';
+        InsertQuery.ExecSQL;
+        UniConnection.Commit;
 
         // Prepare SQL
         SQL := 'INSERT INTO JISEKIDATA (JDSEQNO, seizono, bunm, bucd, gkoteicd, kikaicd, jigucd, tantocd, ymds, KMSEQNO, jh, '
-             + 'jmaedanh, jatodanh, jkbn, jyujinh, jmujinh, yujintanka, kikaitanka, koteitanka, GHIMOKUCD, yujinkin, '
-             + 'mujinkin, kinsum, bikou, tourokuymd, sagyoh, kikaikadoh, inptantocd, inpymd, jisekibikou, inppcname, '
-             + 'inpmacaddress, inpusername, inpexename, inpversion, ymde,KEIKOTEICD,JKOTEICD,BUNO,BUSEQNO,koteiseqno,koteino,keih,KAKOSURYO) '
-             + 'VALUES (:NewJDSEQNO, :SeizonoValue, :BunmValue, :BucdValue, :Gkoteicd, :Kikaicd, :Jigucd, :Tantocd, '
-             + 'TO_DATE(:FormattedDateTime, ''YYYY-MM-DD HH24:MI:SS''), :KMSEQNO, :JhValue, :jmaedanh, :jatodanh, :jkbn, :MinMan, :MinMach, '
-             + ':YujintankaValue, :KikaitankaValue, :KoteitankaValue, :GHIMOKUCDValue, :YujinkinValue, :MujinkinValue, '
-             + ':KinsumValue, :Bikou, :Tourokuymd, :Sagyoh, :Kikaikadoh, :InptantocdValue, :Inpymd, :Jisekibikou, '
-             + ':Inppcname, :Inpmacaddress, :Inpusername, :Inpexename, :Inpversion, TO_DATE(:FormattedDateEnd, ''YYYY-MM-DD HH24:MI:SS''),:KEIKOTEICD,:JKOTEICD,:BUNO,:BUSEQNO,:koteiseqno,:koteino'
-             + ',:keih,:SURYO)';
+          + 'jmaedanh, jatodanh, jkbn, jyujinh, jmujinh, yujintanka, kikaitanka, koteitanka, GHIMOKUCD, yujinkin, '
+          + 'mujinkin, kinsum, bikou, tourokuymd, sagyoh, kikaikadoh, inptantocd, inpymd, jisekibikou, inppcname, '
+          + 'inpmacaddress, inpusername, inpexename, inpversion, ymde,KEIKOTEICD,JKOTEICD,BUNO,BUSEQNO,koteiseqno,koteino,keih,KAKOSURYO) '
+          + 'VALUES (:NewJDSEQNO, :SeizonoValue, :BunmValue, :BucdValue, :Gkoteicd, :Kikaicd, :Jigucd, :Tantocd, '
+          + 'TO_DATE(:FormattedDateTime, ''YYYY-MM-DD HH24:MI:SS''), :KMSEQNO, :JhValue, :jmaedanh, :jatodanh, :jkbn, :MinMan, :MinMach, '
+          + ':YujintankaValue, :KikaitankaValue, :KoteitankaValue, :GHIMOKUCDValue, :YujinkinValue, :MujinkinValue, '
+          + ':KinsumValue, :Bikou, :Tourokuymd, :Sagyoh, :Kikaikadoh, :InptantocdValue, :Inpymd, :Jisekibikou, '
+          + ':Inppcname, :Inpmacaddress, :Inpusername, :Inpexename, :Inpversion, TO_DATE(:FormattedDateEnd, ''YYYY-MM-DD HH24:MI:SS''),:KEIKOTEICD,:JKOTEICD,:BUNO,:BUSEQNO,:koteiseqno,:koteino'
+          + ',:keih,:SURYO)';
 
-                InsertQuery.SQL.Text := SQL;
-                InsertQuery.ParamByName('NewJDSEQNO').AsInteger := NewJDSEQNO;
-                InsertQuery.ParamByName('SeizonoValue').AsString := SeizonoValue;
-                InsertQuery.ParamByName('BunmValue').AsString := BunmValue;
-                InsertQuery.ParamByName('BucdValue').AsString := BucdValue;
-                InsertQuery.ParamByName('Gkoteicd').AsString := GkoteicdValue;
-                InsertQuery.ParamByName('Kikaicd').AsString := KIKAICDValue;
-                InsertQuery.ParamByName('Jigucd').AsString := Jigucd;
-                InsertQuery.ParamByName('Tantocd').AsString := TANTOCDValue;
-                InsertQuery.ParamByName('FormattedDateTime').AsString := FormattedDateTime;
-                InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
-                InsertQuery.ParamByName('JhValue').AsInteger := JhValue;
-                InsertQuery.ParamByName('jmaedanh').AsInteger := JMAEDANHValue;
-                InsertQuery.ParamByName('jatodanh').AsInteger := JATODANHValue;
-                InsertQuery.ParamByName('jkbn').AsString := JKBNValue;
-                InsertQuery.ParamByName('MinMan').AsInteger := JYUJINHValue;
-                InsertQuery.ParamByName('MinMach').AsInteger := JMUJINHValue;
-                InsertQuery.ParamByName('YujintankaValue').AsFloat := YujintankaValue;
-                InsertQuery.ParamByName('KikaitankaValue').AsFloat := KikaitankaValue;
-                InsertQuery.ParamByName('KoteitankaValue').AsFloat := KoteitankaValue;
-                InsertQuery.ParamByName('GHIMOKUCDValue').AsInteger := GHIMOKUCDValue;
-                InsertQuery.ParamByName('YujinkinValue').AsFloat := YujinkinValue;
-                InsertQuery.ParamByName('MujinkinValue').AsFloat := MujinkinValue;
-                InsertQuery.ParamByName('KinsumValue').AsFloat := KinsumValue;
-                InsertQuery.ParamByName('Bikou').AsString := Bikou;
-                InsertQuery.ParamByName('Tourokuymd').AsDate := Tourokuymd;
-                InsertQuery.ParamByName('Sagyoh').AsInteger := Sagyoh;
-                InsertQuery.ParamByName('Kikaikadoh').AsInteger := Kikaikadoh;
-                InsertQuery.ParamByName('InptantocdValue').AsString := CD2Value;
-                InsertQuery.ParamByName('Inpymd').AsDateTime := Tourokuymd;
-                InsertQuery.ParamByName('Jisekibikou').AsString := Jisekibikou;
-                InsertQuery.ParamByName('Inppcname').AsString := CompName;
-                InsertQuery.ParamByName('Inpmacaddress').AsString := MACAddr;
-                InsertQuery.ParamByName('Inpusername').AsString := WinUserName;
-                InsertQuery.ParamByName('Inpexename').AsString := ExeName;
-                InsertQuery.ParamByName('Inpversion').AsString := ExeVersion;
-                InsertQuery.ParamByName('FormattedDateEnd').AsString := FormattedDateEnd;
-                InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
-                InsertQuery.ParamByName('JKOTEICD').AsString := KEIKOTEICDValue;
-                InsertQuery.ParamByName('BUNO').AsString := BUNOValue;
-                InsertQuery.ParamByName('BUSEQNO').AsString := BUSEQNOValue;
-                InsertQuery.ParamByName('koteiseqno').AsString := koteiseqnoValue;
-                InsertQuery.ParamByName('koteino').AsString := koteinoValue;
-                InsertQuery.ParamByName('keih').AsString := keihValue;
-                InsertQuery.ParamByName('SURYO').AsString := suryoValue;
+        InsertQuery.SQL.Text := SQL;
+        InsertQuery.ParamByName('NewJDSEQNO').AsInteger := NewJDSEQNO;
+        InsertQuery.ParamByName('SeizonoValue').AsString := SeizonoValue;
+        InsertQuery.ParamByName('BunmValue').AsString := BUNMValue;
+        InsertQuery.ParamByName('BucdValue').AsString := BucdValue;
+        InsertQuery.ParamByName('Gkoteicd').AsString := GkoteicdValue;
+        InsertQuery.ParamByName('Kikaicd').AsString := KIKAICDValue;
+        InsertQuery.ParamByName('Jigucd').AsString := Jigucd;
+        InsertQuery.ParamByName('Tantocd').AsString := TANTOCDValue;
+        InsertQuery.ParamByName('FormattedDateTime').AsString :=
+          FormattedDateTime;
+        InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
+        InsertQuery.ParamByName('JhValue').AsInteger := JhValue;
+        InsertQuery.ParamByName('jmaedanh').AsInteger := JMAEDANHValue;
+        InsertQuery.ParamByName('jatodanh').AsInteger := JATODANHValue;
+        InsertQuery.ParamByName('jkbn').AsString := JKBNValue;
+        InsertQuery.ParamByName('MinMan').AsInteger := JYUJINHValue;
+        InsertQuery.ParamByName('MinMach').AsInteger := JMUJINHValue;
+        InsertQuery.ParamByName('YujintankaValue').AsFloat := YujintankaValue;
+        InsertQuery.ParamByName('KikaitankaValue').AsFloat := KikaitankaValue;
+        InsertQuery.ParamByName('KoteitankaValue').AsFloat := KoteitankaValue;
+        InsertQuery.ParamByName('GHIMOKUCDValue').AsInteger := GHIMOKUCDValue;
+        InsertQuery.ParamByName('YujinkinValue').AsFloat := YujinkinValue;
+        InsertQuery.ParamByName('MujinkinValue').AsFloat := MujinkinValue;
+        InsertQuery.ParamByName('KinsumValue').AsFloat := KinsumValue;
+        InsertQuery.ParamByName('Bikou').AsString := Bikou;
+        InsertQuery.ParamByName('Tourokuymd').AsDate := Tourokuymd;
+        InsertQuery.ParamByName('Sagyoh').AsInteger := Sagyoh;
+        InsertQuery.ParamByName('Kikaikadoh').AsInteger := Kikaikadoh;
+        InsertQuery.ParamByName('InptantocdValue').AsString := CD2Value;
+        InsertQuery.ParamByName('Inpymd').AsDateTime := Tourokuymd;
+        InsertQuery.ParamByName('Jisekibikou').AsString := Jisekibikou;
+        InsertQuery.ParamByName('Inppcname').AsString := CompName;
+        InsertQuery.ParamByName('Inpmacaddress').AsString := MACAddr;
+        InsertQuery.ParamByName('Inpusername').AsString := WinUserName;
+        InsertQuery.ParamByName('Inpexename').AsString := ExeName;
+        InsertQuery.ParamByName('Inpversion').AsString := ExeVersion;
+        InsertQuery.ParamByName('FormattedDateEnd').AsString :=
+          FormattedDateEnd;
+        InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.ParamByName('JKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.ParamByName('BUNO').AsString := BUNOValue;
+        InsertQuery.ParamByName('BUSEQNO').AsString := BUSEQNOValue;
+        InsertQuery.ParamByName('koteiseqno').AsString := koteiseqnoValue;
+        InsertQuery.ParamByName('koteino').AsString := koteinoValue;
+        InsertQuery.ParamByName('keih').AsString := keihValue;
+        InsertQuery.ParamByName('SURYO').AsString := suryoValue;
 
-                InsertQuery.ExecSQL;
+        InsertQuery.ExecSQL;
 
-
-        Inc(ImportCount);
+        inc(ImportCount);
         StringGridCSV.Cells[STATUSs, i] := 'IMPORTED';
       except
         on E: Exception do
         begin
           StringGridCSV.Cells[STATUSs, i] := 'NG';
           UpdateErrorColumn(i, 'Import error: ' + E.Message);
-          Inc(ErrorCount);
+          inc(ErrorCount);
         end;
       end;
     end;
@@ -1524,27 +1530,212 @@ begin
       begin
         UniConnection.Commit;
         if not IsAutoRun then
-          ShowMessage(Format('Successfully imported %d records', [ImportCount]));
+          ShowMessage(Format('Successfully imported %d records',
+            [ImportCount]));
         WriteLog(Format('Successfully imported %d records', [ImportCount]));
       end
       else
       begin
         UniConnection.Rollback;
         if not IsAutoRun then
-          ShowMessage(Format('Import completed with errors. Success: %d, Errors: %d', [ImportCount, ErrorCount]));
-        WriteLog(Format('Import completed with errors. Success: %d, Errors: %d', [ImportCount, ErrorCount]));
+          ShowMessage
+            (Format('Import completed with errors. Success: %d, Errors: %d',
+            [ImportCount, ErrorCount]));
+        WriteLog(Format('Import completed with errors. Success: %d, Errors: %d',
+          [ImportCount, ErrorCount]));
       end;
 
     finally
       InsertQuery.Free;
       ProgressBar1.Position := 0;
     end;
+
   finally
     InsertQuery.Free;
     ProgressBar1.Position := 0;
   end;
 end;
 
+procedure TForm1.UpdateAllKanryoFlg(KmseqNo, SetNo: Integer);
+var
+  JKbn, BuNo, JH, KoteiSu, KoteiKanSu, BuhinSu, BuhinKanSu: Integer;
+  SeizoNo: String;
+  YMDS, YMDE: TDateTime;
+  InsertQuery: TUniQuery;
+const
+  LC_SQL_SEL_INFO = 'SELECT                                    ' + #13#10 +
+    ' NVL(JW.JKBN, 0) JKBN                     ' + #13#10 +
+    ' ,KM.SEIZONO      SEIZONO                 ' + #13#10 +
+    ' ,KM.BUNO         BUNO                    ' + #13#10 +
+    'FROM                                      ' + #13#10 +
+    '  (SELECT KMSEQNO, JKBN FROM KEIKAKUJWMST ' + #13#10 +
+    '   WHERE KMSEQNO = :KMSEQNO               ' + #13#10 +
+    '   AND   SETNO   = :SETNO) JW             ' + #13#10 +
+    ' ,KEIKAKUMST   KM                         ' + #13#10 +
+    'WHERE                                     ' + #13#10 +
+    '    KM.KMSEQNO = JW.KMSEQNO(+)            ' + #13#10 +
+    'AND KM.KMSEQNO = :KMSEQNO                 ' + #13#10;
+  LC_SQL_UPD_KOTEI = 'UPDATE KEIKAKUOPT SET    ' + #13#10 +
+    '  KANRYOFLG = :KANRYOFLG ' + #13#10 + 'WHERE                    ' + #13#10
+    + '  KMSEQNO = :KMSEQNO     ' + #13#10;
+  LC_SQL_UPD_BUHIN = 'UPDATE BUHINKOOPT SET     ' + #13#10 +
+    '  KANRYOFLG = :KANRYOFLG  ' + #13#10 + 'WHERE                     ' +
+    #13#10 + '    SEIZONO = :SEIZONO    ' + #13#10 +
+    'AND BUNO    = :BUNO       ' + #13#10;
+  LC_SQL_UPD_SEIZO = 'UPDATE SEIZOOPT SET      ' + #13#10 +
+    '  KANRYOFLG = :KANRYOFLG ' + #13#10 + ' ,JYMDS     = :JYMDS     ' + #13#10
+    + ' ,JYMDE     = :JYMDE     ' + #13#10 + ' ,JFLG      = :JFLG      ' +
+    #13#10 + ' ,JH        = :JH        ' + #13#10 + 'WHERE                    '
+    + #13#10 + '  SEIZONO = :SEIZONO     ' + #13#10;
+  LC_SQL_SEL_JH = 'SELECT                  ' + #13#10 +
+    '  SUM(JD.JH)   JH       ' + #13#10 + ' ,MIN(JD.YMDS) YMDS     ' + #13#10 +
+    ' ,MAX(JD.YMDE) YMDE     ' + #13#10 + 'FROM                    ' + #13#10 +
+    '  JISEKIDATA JD         ' + #13#10 + 'WHERE                   ' + #13#10 +
+    '  JD.SEIZONO = :SEIZONO ' + #13#10;
+  LC_SQL_SEL_BUHINKAN_INFO =
+    'SELECT                                                ' + #13#10 +
+    '  KM.SEIZONO                                          ' + #13#10 +
+    ' ,KM.BUNO                                             ' + #13#10 +
+    ' ,COUNT( KM.KMSEQNO ) KOUTEISUU                       ' + #13#10 +
+    ' ,SUM( KO.KANRYOFLG ) KANRYOSUU                       ' + #13#10 +
+    'FROM                                                  ' + #13#10 +
+    '  KEIKAKUMST KM                                       ' + #13#10 +
+    ' ,KEIKAKUOPT KO                                       ' + #13#10 +
+    'WHERE                                                 ' + #13#10 +
+    '    (KM.KMSEQNO = KO.KMSEQNO)                         ' + #13#10 +
+    'AND ( (KM.SEIZONO = :SEIZONO) AND (KM.BUNO = :BUNO) ) ' + #13#10 +
+    'GROUP BY                                              ' + #13#10 +
+    '  KM.SEIZONO                                          ' + #13#10 +
+    ' ,KM.BUNO                                             ' + #13#10;
+  LC_SQL_SEL_SEIZOKAN_INFO = 'SELECT                             ' + #13#10 +
+    '  SUM( BO.KANRYOFLG ) BUKANRYOSUU  ' + #13#10 +
+    ' ,COUNT( BO.BUNO )    BUSUU        ' + #13#10 +
+    'FROM                               ' + #13#10 +
+    '  BUHINKOOPT BO                    ' + #13#10 +
+    ' ,BUHINKOMST BK                    ' + #13#10 +
+    'WHERE                              ' + #13#10 +
+    '    BK.SEIZONO = BO.SEIZONO        ' + #13#10 +
+    'AND BK.BUNO    = BO.BUNO           ' + #13#10 +
+    'AND BK.SEIZONO = :SEIZONO          ' + #13#10 +
+    'AND BK.KOUTEISUU <> 0              ' + #13#10;
+begin
+InsertQuery := TUniQuery.Create(nil);
+  try
+    InsertQuery.Connection := UniConnection;
+    UniConnection.StartTransaction;
+
+    // queSelAllKanryo.Close;
+    InsertQuery.SQL.Clear;
+    InsertQuery.SQL.Text := LC_SQL_SEL_INFO;
+    InsertQuery.ParamByName('KMSEQNO').AsInteger := KmseqNo;
+    InsertQuery.ParamByName('SETNO').AsInteger := SetNo;
+    InsertQuery.Open;
+    JKbn := InsertQuery.FieldByName('JKBN').AsInteger;
+    SeizoNo := InsertQuery.FieldByName('SEIZONO').AsString;
+    BuNo := InsertQuery.FieldByName('BUNO').AsInteger;
+    InsertQuery.Close;
+    InsertQuery.Close;
+    InsertQuery.SQL.Clear;
+    InsertQuery.SQL.Text := LC_SQL_UPD_KOTEI;
+    if JKbn = 4 then
+    begin
+      InsertQuery.ParamByName('KANRYOFLG').AsInteger := 1;
+    end
+    else
+    begin
+      InsertQuery.ParamByName('KANRYOFLG').AsInteger := 0;
+    end;
+    InsertQuery.ParamByName('KMSEQNO').AsInteger := KmseqNo;
+    InsertQuery.ExecSQL;
+    InsertQuery.Close;
+    InsertQuery.SQL.Text := LC_SQL_SEL_JH;
+    InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+    InsertQuery.Open;
+    JH := InsertQuery.FieldByName('JH').AsInteger;
+    YMDS := InsertQuery.FieldByName('YMDS').AsDateTime;
+    YMDE := InsertQuery.FieldByName('YMDE').AsDateTime;
+    InsertQuery.Close;
+    if JKbn = 4 then
+    begin
+      InsertQuery.Close;
+      InsertQuery.SQL.Text := LC_SQL_SEL_BUHINKAN_INFO;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.ParamByName('BUNO').AsInteger := BuNo;
+      InsertQuery.Open;
+      try
+        KoteiSu := InsertQuery.FieldByName('KOUTEISUU').AsInteger;
+        KoteiKanSu := InsertQuery.FieldByName('KANRYOSUU').AsInteger;
+      finally
+        InsertQuery.Close;
+      end;
+      InsertQuery.SQL.Text := LC_SQL_UPD_BUHIN;
+      if (KoteiSu = KoteiKanSu) and (KoteiKanSu <> 0) then
+      begin
+        InsertQuery.ParamByName('KANRYOFLG').AsInteger := 1;
+      end
+      else
+      begin
+        InsertQuery.ParamByName('KANRYOFLG').AsInteger := 0;
+      end;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.ParamByName('BUNO').AsInteger := BuNo;
+      InsertQuery.ExecSQL;
+      InsertQuery.Close;
+      InsertQuery.SQL.Text := LC_SQL_SEL_SEIZOKAN_INFO;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.Open;
+      try
+        BuhinSu := InsertQuery.FieldByName('BUSUU').AsInteger;
+        BuhinKanSu := InsertQuery.FieldByName('BUKANRYOSUU').AsInteger;
+      finally
+        InsertQuery.Close;
+      end;
+      InsertQuery.SQL.Text := LC_SQL_UPD_SEIZO;
+      if (BuhinSu = BuhinKanSu) and (BuhinSu <> 0) then
+      begin
+        InsertQuery.ParamByName('KANRYOFLG').AsInteger := 1;
+      end
+      else
+      begin
+        InsertQuery.ParamByName('KANRYOFLG').AsInteger := 0;
+      end;
+      InsertQuery.ParamByName('JFLG').AsInteger := 2;
+      InsertQuery.ParamByName('JH').AsInteger := JH;
+      InsertQuery.ParamByName('JYMDS').AsDateTime := YMDS;
+      if YMDS = 0 then
+        InsertQuery.ParamByName('JYMDS').Clear;
+      InsertQuery.ParamByName('JYMDE').AsDateTime := YMDE;
+      if YMDE = 0 then
+        InsertQuery.ParamByName('JYMDE').Clear;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.ExecSQL;
+    end
+    else
+    begin
+      InsertQuery.SQL.Text := LC_SQL_UPD_BUHIN;
+      InsertQuery.ParamByName('KANRYOFLG').AsInteger := 0;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.ParamByName('BUNO').AsInteger := BuNo;
+
+      InsertQuery.ExecSQL;
+      InsertQuery.SQL.Text := LC_SQL_UPD_SEIZO;
+      InsertQuery.ParamByName('JFLG').AsInteger := 1;
+      InsertQuery.ParamByName('JH').AsInteger := JH;
+      InsertQuery.ParamByName('JYMDS').AsDateTime := YMDS;
+      if YMDS = 0 then
+        InsertQuery.ParamByName('JYMDS').Clear;
+      InsertQuery.ParamByName('JYMDE').AsDateTime := YMDE;
+      if YMDE = 0 then
+        InsertQuery.ParamByName('JYMDE').Clear;
+      InsertQuery.ParamByName('SEIZONO').AsString := SeizoNo;
+      InsertQuery.ParamByName('KANRYOFLG').AsInteger := 0;
+      InsertQuery.ExecSQL;
+    end;
+  finally
+    InsertQuery.Free;
+    ProgressBar1.Position := 0;
+  end;
+end;
 
 procedure TForm1.LogRowToCSV(Row: Integer; ErrorMessage: string);
 var
@@ -1559,18 +1750,18 @@ begin
   if HasResult = '1' then
   Begin
     // Initialize the column titles array
-    SetLength(ColumnTitles, StringGridCSV.ColCount+2);
+    SetLength(ColumnTitles, StringGridCSV.ColCount + 2);
 
-        // Set the headers for the grid based on the new column names
+    // Set the headers for the grid based on the new column names
     ColumnTitles[0] := 'STATUS';
     ColumnTitles[1] := 'SEIZONO';
     ColumnTitles[2] := 'BUNM';
-    ColumnTitles[3]:= 'KEIKOTEICD';
+    ColumnTitles[3] := 'KEIKOTEICD';
     ColumnTitles[4] := 'KIKAICD';
     ColumnTitles[5] := 'KIKAINM';
     ColumnTitles[6] := 'TANTOCD';
     ColumnTitles[7] := 'TANTONM';
-    ColumnTitles[8]:= 'YMDS';
+    ColumnTitles[8] := 'YMDS';
     ColumnTitles[9] := 'YMDE';
     ColumnTitles[10] := 'JKBN';
     ColumnTitles[11] := 'JMAEDANH';
@@ -1612,7 +1803,7 @@ begin
       RowValues := RowValues + StringGridCSV.Cells[Col, Row];
     end;
 
-    RowValues :=  InttoStr(Row) + ',' + RowValues + ErrorMessage;
+    RowValues := IntToStr(Row) + ',' + RowValues + ErrorMessage;
     Writeln(ErrorLog, RowValues);
     CloseFile(ErrorLog);
   End
@@ -1622,7 +1813,6 @@ begin
   end;
 
 end;
-
 
 function TForm1.IsMaxTime(CellValue1, CellValue2: string): string;
 var
@@ -1654,7 +1844,6 @@ begin
   else
     Result := B;
 end;
-
 
 function TForm1.GetTimeInMinutes(const TimeStr: string): Integer;
 var
@@ -1726,7 +1915,8 @@ begin
   if TryStrToTime(TimeStr, DateTime) then
     FormattedTime := FormatDateTime('hh:nn:ss', DateTime)
   else
-    FormattedTime := 'NULL'; // Default to '00:00:00' if the time string is invalid
+    FormattedTime := 'NULL';
+  // Default to '00:00:00' if the time string is invalid
 
   // Append the formatted time
   Result := Result + ' ' + FormattedTime;
@@ -1772,13 +1962,13 @@ begin
   begin
     StringGridCSV.Cells[NOs, Row] := 'NG';
     StringGridCSV.Cells[STATUSs, Row] := StringGridCSV.Cells[STATUSs, Row] +
-    ErrorMessage;
+      ErrorMessage;
   end
   else
   begin
     StringGridCSV.Cells[NOs, Row] := 'NG';
-    StringGridCSV.Cells[STATUSs, Row] := StringGridCSV.Cells[STATUSs, Row] + ',' +
-    ErrorMessage;
+    StringGridCSV.Cells[STATUSs, Row] := StringGridCSV.Cells[STATUSs, Row] + ','
+      + ErrorMessage;
   end;
 
   StringGridCSV.Anchors := [akLeft, akTop, akRight, akBottom];
@@ -1788,7 +1978,7 @@ procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
 var
   Files: TStringDynArray;
   CSVLines: TStringList;
-  FilePath, Line, FileName: string;
+  FilePath, Line, filename: string;
   Row, Col, MaxCol, FilenameColIndex: Integer;
   CSVHeaderRead: Boolean;
 begin
@@ -1807,7 +1997,8 @@ begin
       if not CSVHeaderRead then
       begin
         MaxCol := Length(CSVLines[0].Split([',']));
-        StringGridCSV.ColCount := MaxCol + 3; // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
+        StringGridCSV.ColCount := MaxCol + 3;
+        // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
         FilenameColIndex := StringGridCSV.ColCount - 1; // The last column index
         StringGridCSV.RowCount := 1; // To skip the header row in the display
         CSVHeaderRead := True;
@@ -1821,15 +2012,18 @@ begin
           Continue;
 
         StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
-        var Cells := Line.Split([',']);
+        var
+        Cells := Line.Split([',']);
 
         // Populate the grid cells with CSV data
         for Col := 1 to High(Cells) + 1 do
           if Col <= MaxCol then
           begin
-             StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1];
-             StringGridCSV.Cells[FILENAMEs, StringGridCSV.RowCount - 1] :=  FileNameStr ;
-        // Add filename to the last column, ensure you use the correct column inde
+            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] :=
+              Cells[Col - 1];
+            StringGridCSV.Cells[FILENAMEs, StringGridCSV.RowCount - 1] :=
+              FileNameStr;
+            // Add filename to the last column, ensure you use the correct column inde
           end;
 
       end;
@@ -1889,19 +2083,19 @@ end;
 procedure TForm1.StringGridCSVDrawCell(Sender: TObject; ACol, ARow: Integer;
   Rect: TRect; State: TGridDrawState);
 var
-  S: string;
+  s: string;
   InfoColumnIndex, TextWidth, NewColWidth: Integer;
   Grid: TStringGrid;
 const
   CellPadding = 2; // Adjust the padding as needed
 begin
   Grid := Sender as TStringGrid;
-  S := Grid.Cells[ACol, ARow]; // Get the cell text
+  s := Grid.Cells[ACol, ARow]; // Get the cell text
   InfoColumnIndex := GetColumnIndexByHeaderName(StringGridCSV, 'Info');
 
   // Calculate text width and adjust column width if necessary
   Grid.Canvas.Font := Grid.Font; // Use the grid's font for measurement
-  TextWidth := Grid.Canvas.TextWidth(S) + 2 * CellPadding;
+  TextWidth := Grid.Canvas.TextWidth(s) + 2 * CellPadding;
   NewColWidth := Max(Grid.ColWidths[ACol], TextWidth);
   if NewColWidth > Grid.ColWidths[ACol] then
     Grid.ColWidths[ACol] := NewColWidth;
@@ -1918,20 +2112,20 @@ begin
 
     Grid.Canvas.FillRect(Rect);
     Grid.Canvas.Font.Color := clWindowText;
-    DrawText(Grid.Canvas.Handle, PChar(S), Length(S), Rect,
+    DrawText(Grid.Canvas.Handle, PChar(s), Length(s), Rect,
       DT_CENTER or DT_VCENTER or DT_SINGLELINE);
   end
   else if ACol = 0 then // Change for your "Result" column index
   begin
     // "NG" cell formatting
-    if AnsiStartsText('NG', S) then
+    if AnsiStartsText('NG', s) then
     begin
       Grid.Canvas.Brush.Color := clYellow;
       // Entire cell background color for "NG" cells
       Grid.Canvas.Font.Color := clRed; // Text color for "NG" cells
       Grid.Canvas.FillRect(Rect); // Fill the cell with the brush color
     end
-    else if S = 'OK' then
+    else if s = 'OK' then
     begin
       Grid.Canvas.Brush.Color := clWebLightGreen;
       // Entire cell background color for "NG" cells
@@ -1944,21 +2138,21 @@ begin
       Grid.Canvas.Font.Color := clWindowText; // Default text color for cells
       Grid.Canvas.FillRect(Rect); // Fill the cell with the brush color
     end;
-    DrawText(Grid.Canvas.Handle, PChar(S), Length(S), Rect,
+    DrawText(Grid.Canvas.Handle, PChar(s), Length(s), Rect,
       DT_CENTER or DT_VCENTER or DT_SINGLELINE);
   end
   else if (ARow > 0) and (ACol = InfoColumnIndex) then
   begin
     // Check If Info no blank
-    if S <> '' then
+    if s <> '' then
     begin
       Grid.Canvas.Brush.Color := clYellow;
       // Entire cell background color for "NG" cells
       Grid.Canvas.Font.Color := clRed; // Text color for "NG" cells
       Grid.Canvas.FillRect(Rect); // Fill the cell with the brush color
       // Align the text to the left with padding
-      Inc(Rect.Left, CellPadding);
-      DrawText(Grid.Canvas.Handle, PChar(S), Length(S), Rect,
+      inc(Rect.Left, CellPadding);
+      DrawText(Grid.Canvas.Handle, PChar(s), Length(s), Rect,
         DT_LEFT or DT_VCENTER or DT_SINGLELINE);
     end;
   end
@@ -1969,8 +2163,8 @@ begin
     Grid.Canvas.Font.Color := clWindowText; // Default text color for cells
     Grid.Canvas.FillRect(Rect); // Fill the cell with the brush color
     // Adjust the Rect to add padding on the left
-    Inc(Rect.Left);
-    DrawText(Grid.Canvas.Handle, PChar(S), Length(S), Rect,
+    inc(Rect.Left);
+    DrawText(Grid.Canvas.Handle, PChar(s), Length(s), Rect,
       DT_LEFT or DT_VCENTER or DT_SINGLELINE);
   end;
 end;
@@ -2002,25 +2196,24 @@ begin
     Grid.ColWidths[STATUSs] := 250;
   end;
 
-    // Set the headers for the grid based on the new column names
-    Grid.Cells[NOs, 0] := 'STATUS';
-    Grid.Cells[STATUSs, 0] := 'COMMENT';
-    Grid.Cells[SEIZONOs, 0] := 'SEIZONO';
-    Grid.Cells[BUNMs, 0] := 'BUNM';
-    Grid.Cells[KEIKOTEICDs, 0] := 'KEIKOTEICD';
-    Grid.Cells[KIKAICDs, 0] := 'KIKAICD';
-    Grid.Cells[KIKAINMs, 0] := 'KIKAINM';
-    Grid.Cells[TANTOCDs, 0] := 'TANTOCD';
-    Grid.Cells[TANTONMs, 0] := 'TANTONM';
-    Grid.Cells[YMDSs, 0] := 'YMDS';
-    Grid.Cells[YMDEs, 0] := 'YMDE';
-    Grid.Cells[JKBNs, 0] := 'JKBN';
-    Grid.Cells[JMAEDANHs, 0] := 'JMAEDANH';
-    Grid.Cells[JYUJINHs, 0] := 'JYUJINH';
-    Grid.Cells[JMUJINHs, 0] := 'JMUJINH';
-    Grid.Cells[JATODANHs, 0] := 'JATODANH';
-    Grid.Cells[FILENAMEs, 0] := 'FILENAME';
-
+  // Set the headers for the grid based on the new column names
+  Grid.Cells[NOs, 0] := 'STATUS';
+  Grid.Cells[STATUSs, 0] := 'COMMENT';
+  Grid.Cells[SEIZONOs, 0] := 'SEIZONO';
+  Grid.Cells[BUNMs, 0] := 'BUNM';
+  Grid.Cells[KEIKOTEICDs, 0] := 'KEIKOTEICD';
+  Grid.Cells[KIKAICDs, 0] := 'KIKAICD';
+  Grid.Cells[KIKAINMs, 0] := 'KIKAINM';
+  Grid.Cells[TANTOCDs, 0] := 'TANTOCD';
+  Grid.Cells[TANTONMs, 0] := 'TANTONM';
+  Grid.Cells[YMDSs, 0] := 'YMDS';
+  Grid.Cells[YMDEs, 0] := 'YMDE';
+  Grid.Cells[JKBNs, 0] := 'JKBN';
+  Grid.Cells[JMAEDANHs, 0] := 'JMAEDANH';
+  Grid.Cells[JYUJINHs, 0] := 'JYUJINH';
+  Grid.Cells[JMUJINHs, 0] := 'JMUJINH';
+  Grid.Cells[JATODANHs, 0] := 'JATODANH';
+  Grid.Cells[FILENAMEs, 0] := 'FILENAME';
 
   // Set column widths for result column
   Grid.ColWidths[0] := 150;
@@ -2041,7 +2234,7 @@ end;
 procedure TForm1.SetIndex;
 begin
 
-  NOs :=0;
+  NOs := 0;
   SEIZONOs := 1;
   BUNMs := 2;
   KEIKOTEICDs := 3;
@@ -2056,7 +2249,7 @@ begin
   JYUJINHs := 12;
   JMUJINHs := 13;
   JATODANHs := 14;
-  STATUSs :=16;
+  STATUSs := 16;
   FILENAMEs := 15;
 
 end;
@@ -2067,7 +2260,7 @@ var
 begin
   OtherColsWidth := 0;
   for i := 0 to Grid.ColCount - 2 do // Exclude the last column
-    Inc(OtherColsWidth, Grid.ColWidths[i]);
+    inc(OtherColsWidth, Grid.ColWidths[i]);
 
   TotalWidth := Grid.ClientWidth - OtherColsWidth - Grid.GridLineWidth *
     (Grid.ColCount - 1);
@@ -2080,11 +2273,10 @@ begin
   AdjustLastColumnWidth(StringGridCSV);
 end;
 
-
 procedure MoveAllFiles;
 var
   Files: TStringDynArray;
-  filename, NewFileName, DateTimeStr: string;
+  filename, newFilename, DateTimeStr: string;
 begin
   // Get all files in the source directory
   Files := TDirectory.GetFiles(FolderPath);
@@ -2102,10 +2294,10 @@ begin
       // Move each file to the destination directory with the date and time appended to the filename
       for filename in Files do
       begin
-        NewFileName := TPath.Combine(MovePath,
+        newFilename := TPath.Combine(MovePath,
           TPath.GetFileNameWithoutExtension(filename) + '_' + DateTimeStr +
           TPath.GetExtension(filename));
-        TFile.Move(filename, NewFileName);
+        TFile.Move(filename, newFilename);
       end;
     end
     else
