@@ -1309,6 +1309,7 @@ begin
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+
         BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
         BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
         koteiseqnoValue := InsertQuery.FieldByName('koteiseqno').AsString;
@@ -1404,7 +1405,7 @@ begin
         end
         else if (JKBNValue = '2') OR (JKBNValue = '3') then
         begin // 2024/05/28 Added Case JKBN = 3
-          if not haskeikakujwmst then
+          if haskeikakujwmst then
             begin
               InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
               InsertQuery.ParamByName('SETNO').AsInteger := 0;
@@ -1526,8 +1527,10 @@ begin
         InsertQuery.Close;
         // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
         NewJDSEQNO := MaxJDSEQNO + 1;
-
-        UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        if KMSEQNOValue <>'' then
+        begin
+               UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        end;
         // Update SEQNO in HATUBAN based on JISEKIDATA
         InsertQuery.SQL.Text := 'UPDATE HATUBAN ' + 'SET SEQNO = SEQNO + 1 ' +
           'WHERE ID = ''JISEKIDATA''';
