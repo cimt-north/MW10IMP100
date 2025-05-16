@@ -226,7 +226,7 @@ begin
     ErrorPath := IniFile.ReadString('Settings', 'ErrorPath', '');
     MovePath := IniFile.ReadString('Settings', 'MovePath', '');
     Operation := IniFile.ReadString('Settings', 'Operation', '');
-    HasLogFile := IniFile.ReadString('Settings', 'HasLogFile', '');
+    HasLogFile := IniFile.ReadString('Settings', 'HasbkFile', '');
     Error := IniFile.ReadString('Settings', 'Error', '');
     PathErrorCSV := IniFile.ReadString('Settings', 'PathErrorCSV', '');
     HasErrorFileChoice := IniFile.ReadString('Settings', 'HasErrorFile', '');
@@ -249,7 +249,7 @@ begin
   Begin
     // Initialize the column titles array
     SetLength(ColumnTitles, StringGridCSV.ColCount);
-    ColumnTitles[0] := 'STATUS';
+    ColumnTitles[0] := 'ROW';
     ColumnTitles[1] := 'SEIZONO';
     ColumnTitles[2] := 'BUNM';
     ColumnTitles[3] := 'KEIKOTEICD';
@@ -264,12 +264,11 @@ begin
     ColumnTitles[12] := 'JYUJINH';
     ColumnTitles[13] := 'JMUJINH';
     ColumnTitles[14] := 'JATODANH';
-    ColumnTitles[15] := 'FILENAME';
-     ColumnTitles[16] := 'COMMENT';
+     ColumnTitles[15] := 'COMMENT';
 
     // Add more titles as needed...
     // Initialize the error log file
-    CurrentDate := FormatDateTime('YYYYMMDD', Now);
+    CurrentDate := FormatDateTime('YYYYMMDD_HHNNSS', Now);
     // Append the date to the file name
     ErrorFileName := PathErrorCSV + '/' + CurrentDate + '_ErrorLog' + '.csv';
 
@@ -308,7 +307,6 @@ begin
   else
   begin
     // Nothing to do!!
-    WriteLog('LogErrorRowToCSV');
   end;
 
 end;
@@ -612,7 +610,7 @@ begin
   if HasErrorFileChoice = '1' then
   begin
 
-    CurrentDate := FormatDateTime('YYYYMMDD', Now);
+    CurrentDate := FormatDateTime('YYYYMMDD_HHNNSS', Now);
     LogFileName := ErrorPath + '/' + CurrentDate + '_MW10IMP100_log.log';
 
     // Counting the number of lines in the log file
@@ -716,6 +714,7 @@ begin
   ImportDataToDatabase;
   SpeedButton1.Enabled := True;
   SpeedButtonIMP.Enabled := false;
+  Managefile;
 end;
 
 function TForm1.GetStringGridRowData(Grid: TStringGrid;
@@ -1167,7 +1166,7 @@ var
     keihValue, suryoValue: string;
   JKBNValue: string;
   SQL: string;
-  IsAutoRun: Boolean;
+  IsAutoRun,haskeikakujwmst: Boolean;
   Param: string;
   updateYMDS: Boolean;
 begin
@@ -1334,6 +1333,7 @@ begin
             + ' LPAD(:JTANTOCD,8),:JKIKAICD,LPAD(:INPTANTOCD,8),:INPYMD,LPAD(:UPDTANTOCD,8),:UPDYMD,:SEIZONO        '#13
             + ' FROM KEIKAKUMST WHERE KMSEQNO = :KMSEQNO                                                            '#13
             + '';
+          haskeikakujwmst := false;
           updateYMDS := True;
         end
         // If exist then UPDATE
@@ -1403,10 +1403,14 @@ begin
         end
         else if (JKBNValue = '2') OR (JKBNValue = '3') then
         begin // 2024/05/28 Added Case JKBN = 3
-          InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+          if not haskeikakujwmst then
+            begin
+              InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+              InsertQuery.ParamByName('SETNO').AsInteger := 0;
+            end;
           InsertQuery.ParamByName('JKBN').AsString := '2';
           InsertQuery.ParamByName('JDANKBN').AsString := '0';
-          InsertQuery.ParamByName('SETNO').AsInteger := 0;
+
           // Calculate estimate enddate
         end;
         InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
@@ -2307,43 +2311,6 @@ end;
 procedure TForm1.FormResize(Sender: TObject);
 begin
   AdjustLastColumnWidth(StringGridCSV);
-end;
-
-procedure MoveAllFiles;
-var
-  Files: TStringDynArray;
-  filename, newFilename, DateTimeStr: string;
-begin
-  // Get all files in the source directory
-  Files := TDirectory.GetFiles(FolderPath);
-
-  // Format the current date and time as a string
-  DateTimeStr := FormatDateTime('yyyy-mm-dd_hhnnss', Now);
-  if HasLogFile = '1' then
-  begin
-    if Operation = 'Move' then
-    begin
-      // Ensure the destination directory exists
-      if not TDirectory.Exists(MovePath) then
-        TDirectory.CreateDirectory(MovePath);
-
-      // Move each file to the destination directory with the date and time appended to the filename
-      for filename in Files do
-      begin
-        newFilename := TPath.Combine(MovePath,
-          TPath.GetFileNameWithoutExtension(filename) + '_' + DateTimeStr +
-          TPath.GetExtension(filename));
-        TFile.Move(filename, newFilename);
-      end;
-    end
-    else
-    begin
-      // MovePath is empty, delete all files in the source directory
-      for filename in Files do
-        TFile.Delete(filename);
-    end;
-  end;
-
 end;
 
 procedure TForm1.file2Click(Sender: TObject);

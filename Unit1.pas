@@ -1166,7 +1166,7 @@ var
     keihValue, suryoValue: string;
   JKBNValue: string;
   SQL: string;
-  IsAutoRun: Boolean;
+  IsAutoRun,haskeikakujwmst: Boolean;
   Param: string;
   updateYMDS: Boolean;
 begin
@@ -1316,6 +1316,7 @@ begin
         keihValue := InsertQuery.FieldByName('keih').AsString;
         suryoValue := InsertQuery.FieldByName('suryo').AsString;
         // Check having Leveling data or not
+        haskeikakujwmst :=true;
         if InsertQuery.IsEmpty then
         begin
           InsertQuery.SQL.Text :=
@@ -1333,6 +1334,7 @@ begin
             + ' LPAD(:JTANTOCD,8),:JKIKAICD,LPAD(:INPTANTOCD,8),:INPYMD,LPAD(:UPDTANTOCD,8),:UPDYMD,:SEIZONO        '#13
             + ' FROM KEIKAKUMST WHERE KMSEQNO = :KMSEQNO                                                            '#13
             + '';
+          haskeikakujwmst := false;
           updateYMDS := True;
         end
         // If exist then UPDATE
@@ -1402,10 +1404,14 @@ begin
         end
         else if (JKBNValue = '2') OR (JKBNValue = '3') then
         begin // 2024/05/28 Added Case JKBN = 3
-          InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+          if not haskeikakujwmst then
+            begin
+              InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+              InsertQuery.ParamByName('SETNO').AsInteger := 0;
+            end;
           InsertQuery.ParamByName('JKBN').AsString := '2';
           InsertQuery.ParamByName('JDANKBN').AsString := '0';
-          InsertQuery.ParamByName('SETNO').AsInteger := 0;
+
           // Calculate estimate enddate
         end;
         InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
