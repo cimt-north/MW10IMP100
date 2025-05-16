@@ -61,6 +61,8 @@ type
 
 var
   Form2: TForm2;
+    Operation, HasErrorFileChoice, HasLogFile, ErrorPath, FolderPath, Error,
+    PathErrorCSV, ResultPathCSV, HasResult , FileNameStr: String;
 
 implementation
 
@@ -120,7 +122,7 @@ begin
     IniFile.WriteBool('Settings', 'Error',CheckBoxError.Checked);
     IniFile.WriteString('Settings', 'PathErrorCSV', EditPathError.Text);
     // Log File
-    IniFile.WriteBool('Settings', 'HasLogFile',CheckBoxLogFile.Checked);
+    IniFile.WriteBool('Settings', 'HasbkFile',CheckBoxLogFile.Checked);
     // Determine which radio button is checked and write it as a string
     if RadioButtonDelete.Checked then
       Operation := 'Delete'
@@ -248,7 +250,7 @@ begin
     EditFolderPath.Text := IniFile.ReadString('Settings', 'FolderPath', '');
 
     // Log File
-    CheckBoxLogFile.Checked := IniFile.ReadBool('Settings', 'HasLogFile', False);
+    CheckBoxLogFile.Checked := IniFile.ReadBool('Settings', 'HasbkFile', False);
     //Error
     CheckBoxError.Checked := IniFile.ReadBool('Settings', 'Error', False);
     // For radio buttons, determine the operation and set the appropriate radio button
@@ -368,10 +370,14 @@ begin
   SpeedButtonMoveFolderBrowse.Visible := False;
 end;
 
+
 procedure TForm2.RadioButtonMoveClick(Sender: TObject);
 begin
   EditMovePath.Visible := True;
   SpeedButtonMoveFolderBrowse.Visible := True;
 end;
+
+
+
 
 end.

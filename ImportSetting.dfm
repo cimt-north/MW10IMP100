@@ -66,6 +66,7 @@ object Form2: TForm2
     ImageIndex = 0
     Images = ImageList1
     Enabled = False
+    Visible = False
     OnClick = SpeedButtonResultClick
   end
   object EditFolderPath: TEdit
@@ -96,7 +97,6 @@ object Form2: TForm2
     Width = 73
     Height = 17
     Caption = 'LogFile'
-    Enabled = False
     TabOrder = 3
     OnClick = CheckBoxErrorFileClick
   end
@@ -133,7 +133,6 @@ object Form2: TForm2
     Width = 73
     Height = 17
     Caption = 'ErrorFile'
-    Enabled = False
     TabOrder = 7
     OnClick = CheckBoxErrorClick
   end
@@ -153,6 +152,7 @@ object Form2: TForm2
     Caption = 'Resultfile'
     Enabled = False
     TabOrder = 9
+    Visible = False
     OnClick = CheckBoxResultClick
   end
   object EditResultPath: TEdit
@@ -162,6 +162,7 @@ object Form2: TForm2
     Height = 23
     Enabled = False
     TabOrder = 10
+    Visible = False
   end
   object CoolBar1: TCoolBar
     Left = 0
