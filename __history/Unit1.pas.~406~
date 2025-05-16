@@ -249,7 +249,7 @@ begin
   Begin
     // Initialize the column titles array
     SetLength(ColumnTitles, StringGridCSV.ColCount);
-    ColumnTitles[0] := 'STATUS';
+    ColumnTitles[0] := 'ROW';
     ColumnTitles[1] := 'SEIZONO';
     ColumnTitles[2] := 'BUNM';
     ColumnTitles[3] := 'KEIKOTEICD';
@@ -268,7 +268,7 @@ begin
 
     // Add more titles as needed...
     // Initialize the error log file
-    CurrentDate := FormatDateTime('YYYYMMDD', Now);
+    CurrentDate := FormatDateTime('YYYYMMDD_HHNNSS', Now);
     // Append the date to the file name
     ErrorFileName := PathErrorCSV + '/' + CurrentDate + '_ErrorLog' + '.csv';
 
@@ -610,7 +610,7 @@ begin
   if HasErrorFileChoice = '1' then
   begin
 
-    CurrentDate := FormatDateTime('YYYYMMDD', Now);
+    CurrentDate := FormatDateTime('YYYYMMDD_HHNNSS', Now);
     LogFileName := ErrorPath + '/' + CurrentDate + '_MW10IMP100_log.log';
 
     // Counting the number of lines in the log file
@@ -1016,6 +1016,40 @@ begin
       end;
 
       try
+               InsertQuery.SQL.Text :=
+          ' SELECT KMSEQNO,BM.BUNO,BM.BUSEQNO,koteiseqno,koteino,km.keih,bm.suryo '
+          + sLineBreak + '   FROM KEIKAKUMST KM                                '
+          + sLineBreak + '   INNER JOIN BUHINKOMST BM                          '
+          + sLineBreak + '   ON KM.SEIZONO = BM.SEIZONO AND BM.BUNO = KM.BUNO  '
+          + sLineBreak + '  WHERE KM.SEIZONO    = :SEIZONO                     '
+          + sLineBreak + '    AND KM.KEIKOTEICD = :KEIKOTEICD                  '
+          + sLineBreak + '    AND BM.BUNM       = :BUNM                        '
+          + sLineBreak + '';
+        InsertQuery.ParamByName('SEIZONO').AsString := SeizonoValue;
+        InsertQuery.ParamByName('BUNM').AsString := BUNMValue;
+        InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.Open;
+        if not InsertQuery.IsEmpty then
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+          exit;
+        end;
+
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'KMSEQNO is Invalid');
+
+        end;
+      end;
+
+
+      try
         // BUNM
         InsertQuery.SQL.Text :=
           'SELECT COUNT(*) AS Count FROM BUHINKOMST WHERE bunm = :bunm';
@@ -1166,7 +1200,7 @@ var
     keihValue, suryoValue: string;
   JKBNValue: string;
   SQL: string;
-  IsAutoRun: Boolean;
+  IsAutoRun,haskeikakujwmst: Boolean;
   Param: string;
   updateYMDS: Boolean;
 begin
@@ -1308,7 +1342,15 @@ begin
         InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
-          KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+          exit;
+        end;
+
         BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
         BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
         koteiseqnoValue := InsertQuery.FieldByName('koteiseqno').AsString;
@@ -1316,6 +1358,7 @@ begin
         keihValue := InsertQuery.FieldByName('keih').AsString;
         suryoValue := InsertQuery.FieldByName('suryo').AsString;
         // Check having Leveling data or not
+        haskeikakujwmst :=true;
         if InsertQuery.IsEmpty then
         begin
           InsertQuery.SQL.Text :=
@@ -1333,6 +1376,7 @@ begin
             + ' LPAD(:JTANTOCD,8),:JKIKAICD,LPAD(:INPTANTOCD,8),:INPYMD,LPAD(:UPDTANTOCD,8),:UPDYMD,:SEIZONO        '#13
             + ' FROM KEIKAKUMST WHERE KMSEQNO = :KMSEQNO                                                            '#13
             + '';
+          haskeikakujwmst := false;
           updateYMDS := True;
         end
         // If exist then UPDATE
@@ -1402,10 +1446,14 @@ begin
         end
         else if (JKBNValue = '2') OR (JKBNValue = '3') then
         begin // 2024/05/28 Added Case JKBN = 3
-          InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+          if haskeikakujwmst then
+            begin
+              InsertQuery.SQL.Text := InsertQuery.SQL.Text + ' AND SETNO = :SETNO';
+              InsertQuery.ParamByName('SETNO').AsInteger := 0;
+            end;
           InsertQuery.ParamByName('JKBN').AsString := '2';
           InsertQuery.ParamByName('JDANKBN').AsString := '0';
-          InsertQuery.ParamByName('SETNO').AsInteger := 0;
+
           // Calculate estimate enddate
         end;
         InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
@@ -1520,8 +1568,10 @@ begin
         InsertQuery.Close;
         // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
         NewJDSEQNO := MaxJDSEQNO + 1;
-
-        UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        if KMSEQNOValue <>'' then
+        begin
+               UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        end;
         // Update SEQNO in HATUBAN based on JISEKIDATA
         InsertQuery.SQL.Text := 'UPDATE HATUBAN ' + 'SET SEQNO = SEQNO + 1 ' +
           'WHERE ID = ''JISEKIDATA''';

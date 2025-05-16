@@ -810,7 +810,7 @@ var
   YMDSValue, YMDEValue: string;
   JKBNValue, JMAEDANHValue, JYUJINHValue, JMUJINHValue, JATODANHValue: string;
   num: Integer;
-  FormattedKinsumValue: String;
+  FormattedKinsumValue,KMSEQNOValue: String;
   FormatSettings: TFormatSettings;
   AllEmpty: Boolean;
   TempDate: TDateTime;
@@ -1014,6 +1014,38 @@ begin
 
         end;
       end;
+
+      try
+        InsertQuery.SQL.Text :=
+          ' SELECT KMSEQNO,BM.BUNO,BM.BUSEQNO,koteiseqno,koteino,km.keih,bm.suryo '
+          + sLineBreak + '   FROM KEIKAKUMST KM                                '
+          + sLineBreak + '   INNER JOIN BUHINKOMST BM                          '
+          + sLineBreak + '   ON KM.SEIZONO = BM.SEIZONO AND BM.BUNO = KM.BUNO  '
+          + sLineBreak + '  WHERE KM.SEIZONO    = :SEIZONO                     '
+          + sLineBreak + '    AND KM.KEIKOTEICD = :KEIKOTEICD                  '
+          + sLineBreak + '    AND BM.BUNM       = :BUNM                        '
+          + sLineBreak + '';
+        InsertQuery.ParamByName('SEIZONO').AsString := SeizonoValue;
+        InsertQuery.ParamByName('BUNM').AsString := BUNMValue;
+        InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.Open;
+        if not InsertQuery.IsEmpty then
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+          exit;
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'KMSEQNO is Invalid');
+        end;
+      end;
+
 
       try
         // BUNM
@@ -1308,7 +1340,14 @@ begin
         InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
-          KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+          exit;
+        end;
 
         BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
         BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
