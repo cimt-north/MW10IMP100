@@ -68,7 +68,6 @@ type
     procedure Refresh1Click(Sender: TObject);
     procedure Copytocsv1Click(Sender: TObject);
     procedure SpeedButton3Click(Sender: TObject);
-    procedure ShowDestroyAlert(const Msg: string);
   private
     procedure LoadCSVFilesIntoGrid(const FolderPath: string);
     procedure ImportDataToDatabase;
@@ -521,7 +520,7 @@ end;
 
 procedure TForm1.Whatisthis1Click(Sender: TObject);
 begin
-  ShowMessage('TKOITO IMPORT ACTUAL')
+  ShowMessage('CIM IMPORT ACTUAL')
 end;
 
 procedure TForm1.WriteLog(const LogMessage: string);
@@ -536,7 +535,7 @@ begin
   begin
 
     CurrentDate := FormatDateTime('YYYYMMDD', Now);
-    LogFileName := ErrorPath +'/'+ CurrentDate + '_KT10IMP100_log.log';
+    LogFileName := ErrorPath +'/'+ CurrentDate + '_MW10IMP100_log.log';
 
     // Counting the number of lines in the log file
     LineCount := 0;
@@ -739,8 +738,20 @@ var
   AllEmpty: Boolean;
   TempDate: TDateTime;
   TempInt: Integer;
+    IsAutoRun: Boolean;
+  Param: string;
 
 begin
+  IsAutoRun := False;
+
+  // Check for AutoRun parameter
+  if ParamCount > 0 then
+  begin
+    Param := LowerCase(ParamStr(1));
+    if Param = '/autorun' then
+      IsAutoRun := True;
+  end;
+
   // Load the database connection parameters
   LoadConnectionParameters;
   SetIndex;
@@ -749,7 +760,9 @@ begin
   // Check if the UniConnection is connected
   if not UniConnection.Connected then
   begin
+  if not IsAutoRun then
     ShowMessage('Error: Database connection .');
+    WriteLog('Error: Database connection .');
     Exit;
   end;
   // Initialize the progress bar
@@ -1072,12 +1085,27 @@ var
   YMDSValue, YMDEValue,BUNOValue,BUSEQNOValue,koteiseqnoValue,koteinoValue,keihValue,suryoValue: string;
   JKBNValue: string;
   SQL: string;
-    updateYMDS : boolean;
+  IsAutoRun: Boolean;
+  Param: string;
+  updateYMDS : boolean;
 begin
+
+  IsAutoRun := False;
+
+  // Check for AutoRun parameter
+  if ParamCount > 0 then
+  begin
+    Param := LowerCase(ParamStr(1));
+    if Param = '/autorun' then
+      IsAutoRun := True;
+  end;
+
   // Initial checks
   if not UniConnection.Connected then
   begin
+  if not IsAutoRun then
     ShowMessage('Error: Database not connected');
+    WriteLog('Error: Database not connected');
     Exit;
   end;
 
@@ -1092,7 +1120,9 @@ begin
   // Check for at least one OK row
   if CountOKRows = 0 then
   begin
+  if not IsAutoRun then
     ShowMessage('No valid rows with OK status found');
+    WriteLog('No valid rows with OK status found');
     Exit;
   end;
 
@@ -1112,7 +1142,9 @@ begin
   IniFileName := ExtractFilePath(Application.ExeName) + '/Setup/DRLOGIN.ini';
   if not FileExists(IniFileName) then
   begin
-    ShowMessage('INI file not found');
+        if not IsAutoRun then
+          ShowMessage('INI file not found');
+          WriteLog('INI file not found');
     Exit;
   end;
 
@@ -1121,7 +1153,11 @@ begin
     CD2Value := IniFile.ReadString('TLogOnForm', 'CD2', '');
     if CD2Value = '' then
     begin
+      if not IsAutoRun then
+      begin
       ShowMessage('CD2 value not found in INI file');
+      WriteLog('CD2 value not found in INI file');
+      end;
       Exit;
     end;
   finally
@@ -1481,15 +1517,25 @@ begin
       end;
     end;
 
-    if ErrorCount = 0 then
-    begin
-      UniConnection.Commit;
-      ShowMessage(Format('Successfully imported %d records', [ImportCount]));
-    end
-    else
-    begin
-      UniConnection.Rollback;
-      ShowMessage(Format('Import completed with errors. Success: %d, Errors: %d', [ImportCount, ErrorCount]));
+    try
+      if ErrorCount = 0 then
+      begin
+        UniConnection.Commit;
+        if not IsAutoRun then
+          ShowMessage(Format('Successfully imported %d records', [ImportCount]));
+        WriteLog(Format('Successfully imported %d records', [ImportCount]));
+      end
+      else
+      begin
+        UniConnection.Rollback;
+        if not IsAutoRun then
+          ShowMessage(Format('Import completed with errors. Success: %d, Errors: %d', [ImportCount, ErrorCount]));
+        WriteLog(Format('Import completed with errors. Success: %d, Errors: %d', [ImportCount, ErrorCount]));
+      end;
+
+    finally
+      InsertQuery.Free;
+      ProgressBar1.Position := 0;
     end;
   finally
     InsertQuery.Free;
