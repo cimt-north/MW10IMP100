@@ -127,6 +127,7 @@ var
     PathErrorCSV, ResultPathCSV, HasResult, FileNameStr: String;
   CurrentDateTime: TDateTime;
   Hours, Minutes, TotalMinutes, RowCheck: Integer;
+    IsAutoRun: Boolean;
 
 const
   MAX_FILE_NAME_LENGTH = 100;
@@ -359,7 +360,6 @@ var
   IniFile: TIniFile;
   filename: string;
   DirectDBName, User, Pass: string;
-  IsAutoRun: Boolean;
   Param: string;
 begin
   CustomBlue := rgb(194, 209, 254); // Standard blue color
@@ -371,6 +371,7 @@ begin
 
   // Check for AutoRun parameter
   IsAutoRun := false;
+
   if ParamCount > 0 then
   begin
     Param := LowerCase(ParamStr(1));
@@ -810,7 +811,7 @@ var
   YMDSValue, YMDEValue: string;
   JKBNValue, JMAEDANHValue, JYUJINHValue, JMUJINHValue, JATODANHValue: string;
   num: Integer;
-  FormattedKinsumValue: String;
+  FormattedKinsumValue,KMSEQNOValue: String;
   FormatSettings: TFormatSettings;
   AllEmpty: Boolean;
   TempDate: TDateTime;
@@ -1014,6 +1015,37 @@ begin
 
         end;
       end;
+
+      try
+        InsertQuery.SQL.Text :=
+          ' SELECT KMSEQNO,BM.BUNO,BM.BUSEQNO,koteiseqno,koteino,km.keih,bm.suryo '
+          + sLineBreak + '   FROM KEIKAKUMST KM                                '
+          + sLineBreak + '   INNER JOIN BUHINKOMST BM                          '
+          + sLineBreak + '   ON KM.SEIZONO = BM.SEIZONO AND BM.BUNO = KM.BUNO  '
+          + sLineBreak + '  WHERE KM.SEIZONO    = :SEIZONO                     '
+          + sLineBreak + '    AND KM.KEIKOTEICD = :KEIKOTEICD                  '
+          + sLineBreak + '    AND BM.BUNM       = :BUNM                        '
+          + sLineBreak + '';
+        InsertQuery.ParamByName('SEIZONO').AsString := SeizonoValue;
+        InsertQuery.ParamByName('BUNM').AsString := BUNMValue;
+        InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
+        InsertQuery.Open;
+        if not InsertQuery.IsEmpty then
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+        end;
+      except
+        on E: Exception do
+        begin
+          // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+          UpdateErrorColumn(i, 'KMSEQNO is Invalid');
+        end;
+      end;
+
 
       try
         // BUNM
@@ -1308,7 +1340,14 @@ begin
         InsertQuery.ParamByName('KEIKOTEICD').AsString := KEIKOTEICDValue;
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
-          KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        begin
+           KMSEQNOValue := InsertQuery.FieldByName('KMSEQNO').AsString;
+        end
+        else
+        begin
+          UpdateErrorColumn(i,'KMSEQNO is Empty');
+          Continue;
+        end;
 
         BUNOValue := InsertQuery.FieldByName('BUNO').AsString;
         BUSEQNOValue := InsertQuery.FieldByName('BUSEQNO').AsString;
@@ -1527,8 +1566,10 @@ begin
         InsertQuery.Close;
         // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
         NewJDSEQNO := MaxJDSEQNO + 1;
-        if not KMSEQNOValue.IsEmpty then
-          UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        if KMSEQNOValue <>'' then
+        begin
+               UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
+        end;
         // Update SEQNO in HATUBAN based on JISEKIDATA
         InsertQuery.SQL.Text := 'UPDATE HATUBAN ' + 'SET SEQNO = SEQNO + 1 ' +
           'WHERE ID = ''JISEKIDATA''';
@@ -2040,16 +2081,15 @@ begin
       begin
         MaxCol := Length(CSVLines[0].Split([',']));
         StringGridCSV.ColCount := MaxCol + 3;
-        // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
-        FilenameColIndex := StringGridCSV.ColCount - 1; // The last column index
-        StringGridCSV.RowCount := 1; // To skip the header row in the display
+        FilenameColIndex := StringGridCSV.ColCount - 1;
+        StringGridCSV.RowCount := 1;
         CSVHeaderRead := True;
       end;
 
       for Row := 1 to CSVLines.Count - 1 do
       begin
         Line := CSVLines[Row];
-        // Skip lines that consist only of commas
+
         if Line.Replace(',', '').Trim = '' then
           Continue;
 
@@ -2057,17 +2097,16 @@ begin
         var
         Cells := Line.Split([',']);
 
-        // Populate the grid cells with CSV data
         for Col := 1 to High(Cells) + 1 do
           if Col <= MaxCol then
           begin
+            // Remove double quotes from each value before assigning to the cell
             StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] :=
-              Cells[Col - 1];
-            StringGridCSV.Cells[FILENAMEs, StringGridCSV.RowCount - 1] :=
-              FileNameStr;
-            // Add filename to the last column, ensure you use the correct column inde
+              Cells[Col - 1].Replace('"', '');
           end;
 
+        // Add filename to the last column
+        StringGridCSV.Cells[FILENAMEs, StringGridCSV.RowCount - 1] := FileNameStr;
       end;
 
     finally
@@ -2075,6 +2114,7 @@ begin
     end;
   end;
 end;
+
 
 function TForm1.GetColumnIndexByHeaderName(StringGrid: TStringGrid;
   HeaderName: string): Integer;
