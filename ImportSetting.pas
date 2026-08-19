@@ -68,7 +68,7 @@ implementation
 
 {$R *.dfm}
 
-uses Unit1;
+uses Main;
 
 procedure TForm2.CheckBoxErrorClick(Sender: TObject);
 begin

@@ -2,7 +2,7 @@ program MW10IMP100;
 
 uses
   Vcl.Forms,
-  Unit1 in 'Unit1.pas' {Form1},
+  Main in 'Main.pas' {Form1},
   ImportSetting in 'ImportSetting.pas' {Form2},
   Vcl.Themes,
   Vcl.Styles;
