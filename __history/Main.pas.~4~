@@ -1610,8 +1610,6 @@ begin
         InsertQuery.ExecSQL;
         UniConnection.Commit;
 
-
-
         // Prepare SQL
         SQL := 'INSERT INTO JISEKIDATA (JDSEQNO, seizono, bunm, bucd, gkoteicd, kikaicd, jigucd, tantocd, ymds, KMSEQNO, jh, '
           + 'jmaedanh, jatodanh, jkbn, jyujinh, jmujinh, yujintanka, kikaitanka, koteitanka, GHIMOKUCD, yujinkin, '

@@ -62,7 +62,6 @@ type
     procedure SetIndex;
     procedure FormResize(Sender: TObject);
     procedure AdjustLastColumnWidth(Grid: TStringGrid);
-    procedure UpdateKeikakujwmstData;
     procedure Managefile;
     procedure Checkvalues;
     procedure CalculateMinutesDifference(const StartTime, EndTime: String;
@@ -714,58 +713,47 @@ end;
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
 begin
   ImportDataToDatabase;
-  UpdateKeikakujwmstData;
   SpeedButton1.Enabled := True;
   SpeedButtonIMP.Enabled := false;
   Managefile;
 end;
 
-
 procedure TForm1.UpdateKeikakujwmstData;
 var
-  UpdateQuery: TUniQuery; // ประกาศตัวแปรสำหรับ Query ใหม่
+  Qry: TFDQuery;
 begin
-  UpdateQuery := TUniQuery.Create(nil);
+  Qry := TFDQuery.Create(nil);
   try
-    // เชื่อมต่อฐานข้อมูลด้วย UniConnection ที่อยู่บนฟอร์มของคุณ
-    UpdateQuery.Connection := UniConnection;
+    Qry.Connection := FDConnection1;
 
-    UpdateQuery.SQL.Text :=
-        ' UPDATE KEIKAKUJWMST t '                                     + #13
-      + ' SET (t.JYMDS, t.JYMDE) = '                                  + #13
-      + ' ( '                                                         + #13
-      + '     SELECT s.JYMDS, s.JYMDE '                               + #13
-      + '     FROM KEIKAKUJWMST s '                                   + #13
-      + '     WHERE s.KMSEQNO = t.KMSEQNO '                           + #13
-      + '       AND s.SETNO = 0 '                                     + #13
-      + '       AND s.JKBN = 4 '                                      + #13
-      + ' ) '                                                         + #13
-      + ' WHERE t.SETNO <> 0 '                                        + #13
-      + '   AND t.JKBN = 4 '                                          + #13
-      + '   AND t.INPEXENAME = ''MW10IMP100.exe'' '                   + #13
-      + '   AND EXISTS '                                              + #13
-      + ' ( '                                                         + #13
-      + '     SELECT 1 '                                              + #13
-      + '     FROM KEIKAKUJWMST s '                                   + #13
-      + '     WHERE s.KMSEQNO = t.KMSEQNO '                           + #13
-      + '       AND s.SETNO = 0 '                                     + #13
-      + '       AND s.JKBN = 4 '                                      + #13
-      + ' ) ';
+    Qry.SQL.Text :=
+      ' UPDATE KEIKAKUJWMST t ' +
+      ' SET (t.JYMDS, t.JYMDE) = ' +
+      ' ( ' +
+      '     SELECT s.JYMDS, s.JYMDE ' +
+      '     FROM KEIKAKUJWMST s ' +
+      '     WHERE s.KMSEQNO = t.KMSEQNO ' +
+      '       AND s.SETNO = 0 ' +
+      '       AND s.JKBN = 4 ' +
+      ' ) ' +
+      ' WHERE t.SETNO <> 0 ' +
+      '   AND t.JKBN = 4 ' +
+      '   AND t.INPEXENAME = ''MW10IMP100.exe'' ' +
+      '   AND EXISTS ' +
+      ' ( ' +
+      '     SELECT 1 ' +
+      '     FROM KEIKAKUJWMST s ' +
+      '     WHERE s.KMSEQNO = t.KMSEQNO ' +
+      '       AND s.SETNO = 0 ' +
+      '       AND s.JKBN = 4 ' +
+      ' ) ';
 
-    try
-      UpdateQuery.ExecSQL;
-    except
-      on E: Exception do
-      begin
-        // จัดการ Error
-        ShowMessage('Error updating JYMDS/JYMDE: ' + E.Message);
-      end;
-    end;
-
+    Qry.ExecSQL;
   finally
-    UpdateQuery.Free; // คืนค่าหน่วยความจำเสมอ
+    Qry.Free;
   end;
 end;
+
 
 function TForm1.GetStringGridRowData(Grid: TStringGrid;
   RowIndex: Integer): String;
@@ -1609,8 +1597,6 @@ begin
           'WHERE ID = ''JISEKIDATA''';
         InsertQuery.ExecSQL;
         UniConnection.Commit;
-
-
 
         // Prepare SQL
         SQL := 'INSERT INTO JISEKIDATA (JDSEQNO, seizono, bunm, bucd, gkoteicd, kikaicd, jigucd, tantocd, ymds, KMSEQNO, jh, '
