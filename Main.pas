@@ -129,7 +129,6 @@ var
   CurrentDateTime: TDateTime;
   Hours, Minutes, TotalMinutes, RowCheck: Integer;
     IsAutoRun: Boolean;
-    LastImportOK: Boolean;
 
 const
   MAX_FILE_NAME_LENGTH = 100;
@@ -467,17 +466,11 @@ begin
         Checkvalues;
         SpeedButtonIMP.Enabled := True;
 
-        LastImportOK := False;
         ImportDataToDatabase;
-        if LastImportOK then
-          UpdateKeikakujwmstData;
 
         SpeedButton1.Enabled := True;
         SpeedButtonIMP.Enabled := false;
-        if LastImportOK then
-          Managefile
-        else
-          WriteLog('AutoRun import failed - source files kept for retry');
+        Managefile;
       finally
         Application.Terminate; // Close the program after the AutoRun process
       end;
@@ -720,16 +713,10 @@ end;
 
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
 begin
-  LastImportOK := False;
   ImportDataToDatabase;
-  if LastImportOK then
-    UpdateKeikakujwmstData;
   SpeedButton1.Enabled := True;
   SpeedButtonIMP.Enabled := false;
-  if LastImportOK then
-    Managefile
-  else
-    WriteLog('Import failed - source files kept for retry');
+  Managefile;
 end;
 
 
@@ -1243,8 +1230,7 @@ var
   Buffer: array [0 .. MAX_COMPUTERNAME_LENGTH + 1] of Char;
   Size: DWORD;
   FormatSettings: TFormatSettings;
-  MaxJDSEQNO, CountOKRows: Integer;
-  HatubanSEQNO: Integer;
+  CountOKRows: Integer;
   JMAEDANHValue, JYUJINHValue, JMUJINHValue, JATODANHValue: Integer;
   KIKAICDValue, KIKAINMValue, TANTOCDValue, TANTONMValue, KMSEQNOValue: string;
   YMDSValue, YMDEValue, BUNOValue, BUSEQNOValue, koteiseqnoValue, koteinoValue,
@@ -1332,7 +1318,6 @@ begin
   InsertQuery := TUniQuery.Create(nil);
   try
     InsertQuery.Connection := UniConnection;
-    UniConnection.StartTransaction;
 
     // Initialize date format
     FormatSettings := TFormatSettings.Create;
@@ -1353,6 +1338,7 @@ begin
       end;
 
       try
+        UniConnection.StartTransaction;
         SeizonoValue := StringGridCSV.Cells[SEIZONOs, i];
         BUNMValue := StringGridCSV.Cells[BUNMs, i];
         KEIKOTEICDValue := StringGridCSV.Cells[KEIKOTEICDs, i];
@@ -1604,51 +1590,26 @@ begin
         Jisekibikou := '';
         Tourokuymd := Now;
 
-        // GET PRIMARY KEY : HATUBAN.SEQNO = last-used (ค่าที่ใช้ล่าสุด ต้อง +1 เพื่อได้เลขใหม่)
-        // อ่านแบบ FOR UPDATE เพื่อล็อกแถวออกเลข กัน race condition ระหว่างหลายโปรแกรม/หลาย instance
-        InsertQuery.Close;
-        InsertQuery.SQL.Text :=
-          'SELECT SEQNO FROM HATUBAN WHERE ID = ''JISEKIDATA'' FOR UPDATE';
-        InsertQuery.Open;
-        if InsertQuery.IsEmpty then
+        if KMSEQNOValue <> '' then
         begin
-          InsertQuery.Close;
-          raise Exception.Create
-            ('HATUBAN row (ID=''JISEKIDATA'') not found - cannot issue JDSEQNO');
+          UpdateAllKanryoFlg(StrToInt(KMSEQNOValue), 0);
         end;
-        HatubanSEQNO := InsertQuery.FieldByName('SEQNO').AsInteger;
-        InsertQuery.Close;
 
-        // เช็คค่าล่าสุดจริงของ JDSEQNO (SELF-HEALING เผื่อ HATUBAN ตามไม่ทัน JISEKIDATA)
+        // GET PRIMARY KEY
+        // Take the next JDSEQNO from HATUBAN atomically (row lock on HATUBAN).
+        // GREATEST(..., MAX(JDSEQNO)) self-heals if HATUBAN.SEQNO ever lags
+        // behind the keys actually present in JISEKIDATA.
         InsertQuery.SQL.Text :=
-          'SELECT NVL(MAX(JDSEQNO), 0) AS MaxJDSEQNO FROM JISEKIDATA';
-        InsertQuery.Open;
-        if not InsertQuery.IsEmpty then
-          MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger
-        else
-          MaxJDSEQNO := 0;
-        InsertQuery.Close;
-
-        // ยึดค่าที่สูงกว่าระหว่าง HATUBAN.SEQNO กับ MAX(JDSEQNO) แล้ว +1 เพื่อได้เลขใหม่
-        if MaxJDSEQNO > HatubanSEQNO then
-          NewJDSEQNO := MaxJDSEQNO + 1
-        else
-          NewJDSEQNO := HatubanSEQNO + 1;
-
-        // อัปเดต HATUBAN "ก่อน" INSERT — บันทึกว่า NewJDSEQNO คือค่าที่ใช้ล่าสุด (last-used)
-        InsertQuery.SQL.Text :=
-          'UPDATE HATUBAN SET SEQNO = :NewSeq WHERE ID = ''JISEKIDATA''';
-        InsertQuery.ParamByName('NewSeq').AsInteger := NewJDSEQNO;
+          'UPDATE HATUBAN ' +
+          '   SET SEQNO = GREATEST(SEQNO, (SELECT NVL(MAX(JDSEQNO), 0) FROM JISEKIDATA)) + 1 ' +
+          ' WHERE ID = ''JISEKIDATA'' ' +
+          'RETURNING SEQNO INTO :NEWSEQ';
+        InsertQuery.ParamByName('NEWSEQ').ParamType := ptOutput;
+        InsertQuery.ParamByName('NEWSEQ').DataType := ftInteger;
         InsertQuery.ExecSQL;
         if InsertQuery.RowsAffected = 0 then
-          raise Exception.Create
-            ('HATUBAN was not updated (ID=''JISEKIDATA'' missing) - JDSEQNO out of sync');
-
-        if KMSEQNOValue <>'' then
-        begin
-               UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
-        end;
-        // NOTE: ห้าม Commit กลางลูป ให้ commit/rollback รวมทีเดียวตอนจบ
+          raise Exception.Create('HATUBAN row for ID=''JISEKIDATA'' not found');
+        NewJDSEQNO := InsertQuery.ParamByName('NEWSEQ').AsInteger;
 
 
 
@@ -1713,42 +1674,15 @@ begin
         InsertQuery.ParamByName('SURYO').AsString := suryoValue;
 
         InsertQuery.ExecSQL;
-
-        // 2026/08/19: Sync JYMDS/JYMDE ของ split set (SETNO<>0) บน Complete (JKBN=4)
-        // คัดลอกค่า JYMDS/JYMDE จากแถว master (SETNO=0, JKBN=4) ไปยังทุก split set
-        // ของ KMSEQNO เดียวกัน (จำกัดเฉพาะรายการที่กำลัง import อยู่)
-        if JKBNValue = '4' then
-        begin
-          InsertQuery.SQL.Text :=
-            ' UPDATE KEIKAKUJWMST t                                '#13
-            + ' SET (t.JYMDS, t.JYMDE) =                            '#13
-            + ' (                                                   '#13
-            + '     SELECT s.JYMDS, s.JYMDE                         '#13
-            + '     FROM KEIKAKUJWMST s                             '#13
-            + '     WHERE s.KMSEQNO = t.KMSEQNO                     '#13
-            + '       AND s.SETNO = 0                               '#13
-            + '       AND s.JKBN = 4                                '#13
-            + ' )                                                   '#13
-            + ' WHERE t.SETNO <> 0                                  '#13
-            + '   AND t.JKBN = 4                                    '#13
-            + '   AND t.KMSEQNO = :KMSEQNO                          '#13
-            + '   AND EXISTS                                        '#13
-            + ' (                                                   '#13
-            + '     SELECT 1                                        '#13
-            + '     FROM KEIKAKUJWMST s                             '#13
-            + '     WHERE s.KMSEQNO = t.KMSEQNO                     '#13
-            + '       AND s.SETNO = 0                               '#13
-            + '       AND s.JKBN = 4                                '#13
-            + ' )                                                   '#13;
-          InsertQuery.ParamByName('KMSEQNO').AsString := KMSEQNOValue;
-          InsertQuery.ExecSQL;
-        end;
+        UniConnection.Commit;
 
         inc(ImportCount);
         StringGridCSV.Cells[STATUSs, i] := 'IMPORTED';
       except
         on E: Exception do
         begin
+          if UniConnection.InTransaction then
+            UniConnection.Rollback;
           UpdateErrorColumn(i, 'Import error: ' + E.Message);
           LogErrorRowToCSV(i, StringGridCSV.Cells[STATUSs, i]);
           inc(ErrorCount);
@@ -1758,8 +1692,6 @@ begin
 
       if ErrorCount = 0 then
       begin
-        UniConnection.Commit;
-        LastImportOK := True;
         if not IsAutoRun then
           ShowMessage(Format('Successfully imported %d records',
             [ImportCount]));
@@ -1767,8 +1699,6 @@ begin
       end
       else
       begin
-        UniConnection.Rollback;
-        LastImportOK := False;
         if not IsAutoRun then
           ShowMessage
             (Format('Import completed with errors. Success: %d, Errors: %d',
@@ -1778,12 +1708,6 @@ begin
       end;
 
   finally
-    // กัน transaction ค้างเปิดกรณี exception หลุดออกนอกลูป (rollback ทั้งชุด)
-    if UniConnection.InTransaction then
-    begin
-      UniConnection.Rollback;
-      LastImportOK := False;
-    end;
     InsertQuery.Free;
     ProgressBar1.Position := 0;
   end;
