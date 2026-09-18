@@ -129,6 +129,7 @@ var
   CurrentDateTime: TDateTime;
   Hours, Minutes, TotalMinutes, RowCheck: Integer;
     IsAutoRun: Boolean;
+    LastImportOK: Boolean;
 
 const
   MAX_FILE_NAME_LENGTH = 100;
@@ -466,11 +467,17 @@ begin
         Checkvalues;
         SpeedButtonIMP.Enabled := True;
 
+        LastImportOK := False;
         ImportDataToDatabase;
+        if LastImportOK then
+          UpdateKeikakujwmstData;
 
         SpeedButton1.Enabled := True;
         SpeedButtonIMP.Enabled := false;
-        Managefile;
+        if LastImportOK then
+          Managefile
+        else
+          WriteLog('AutoRun import failed - source files kept for retry');
       finally
         Application.Terminate; // Close the program after the AutoRun process
       end;
@@ -713,11 +720,16 @@ end;
 
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
 begin
+  LastImportOK := False;
   ImportDataToDatabase;
-  UpdateKeikakujwmstData;
+  if LastImportOK then
+    UpdateKeikakujwmstData;
   SpeedButton1.Enabled := True;
   SpeedButtonIMP.Enabled := false;
-  Managefile;
+  if LastImportOK then
+    Managefile
+  else
+    WriteLog('Import failed - source files kept for retry');
 end;
 
 
@@ -1252,6 +1264,7 @@ begin
     Exit;
   end;
 
+  CountOKRows := 0;
   for i := 1 to StringGridCSV.RowCount - 1 do
   begin
     if StringGridCSV.Cells[NOs, i] = 'OK' then
@@ -1590,25 +1603,40 @@ begin
         Jisekibikou := '';
         Tourokuymd := Now;
 
-        // GET PRIMARY KEY
-        // Get the maximum JDSEQNO from the JISEKIDATA table
+        // GET PRIMARY KEY : HATUBAN.SEQNO = next-value (ใช้ได้ทันที ไม่ +1)
+        // อ่านแบบ FOR UPDATE เพื่อล็อกแถวออกเลข กัน race condition ระหว่างหลายโปรแกรม/หลาย instance
+        InsertQuery.Close;
         InsertQuery.SQL.Text :=
-          'SELECT MAX(JDSEQNO) AS MaxJDSEQNO FROM JISEKIDATA';
+          'SELECT SEQNO FROM HATUBAN WHERE ID = ''JISEKIDATA'' FOR UPDATE';
+        InsertQuery.Open;
+        if InsertQuery.IsEmpty then
+        begin
+          InsertQuery.Close;
+          raise Exception.Create
+            ('HATUBAN row (ID=''JISEKIDATA'') not found - cannot issue JDSEQNO');
+        end;
+        NewJDSEQNO := InsertQuery.FieldByName('SEQNO').AsInteger;
+        InsertQuery.Close;
+
+        // SELF-HEALING: ถ้า JISEKIDATA เดินล้ำหน้า HATUBAN อยู่ (สภาพเพี้ยนที่เคยเกิด)
+        // ให้กระโดดไปใช้ MAX(JDSEQNO)+1 แทน เพื่อกันชนคีย์เดิม
+        InsertQuery.SQL.Text :=
+          'SELECT NVL(MAX(JDSEQNO), 0) AS MaxJDSEQNO FROM JISEKIDATA';
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
+        begin
           MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
+          if MaxJDSEQNO >= NewJDSEQNO then
+            NewJDSEQNO := MaxJDSEQNO + 1;
+        end;
         InsertQuery.Close;
-        // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
-        NewJDSEQNO := MaxJDSEQNO + 1;
+
         if KMSEQNOValue <>'' then
         begin
                UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
         end;
-        // Update SEQNO in HATUBAN based on JISEKIDATA
-        InsertQuery.SQL.Text := 'UPDATE HATUBAN ' + 'SET SEQNO = SEQNO + 1 ' +
-          'WHERE ID = ''JISEKIDATA''';
-        InsertQuery.ExecSQL;
-        UniConnection.Commit;
+        // NOTE: UPDATE HATUBAN ย้ายไปทำหลัง INSERT JISEKIDATA สำเร็จ (ในทรานแซกชันเดียวกัน)
+        //       และห้าม Commit กลางลูป ให้ commit/rollback รวมทีเดียวตอนจบ
 
 
 
@@ -1674,6 +1702,16 @@ begin
 
         InsertQuery.ExecSQL;
 
+        // SYNC HATUBAN : ตั้ง SEQNO เป็น next-value = MAX(JDSEQNO)+1 เสมอ (ในทรานแซกชันเดียวกับ INSERT)
+        InsertQuery.SQL.Text :=
+          'UPDATE HATUBAN SET SEQNO = ' +
+          '(SELECT NVL(MAX(JDSEQNO), 0) + 1 FROM JISEKIDATA) ' +
+          'WHERE ID = ''JISEKIDATA''';
+        InsertQuery.ExecSQL;
+        if InsertQuery.RowsAffected = 0 then
+          raise Exception.Create
+            ('HATUBAN was not updated (ID=''JISEKIDATA'' missing) - JDSEQNO out of sync');
+
         // 2026/08/19: Sync JYMDS/JYMDE ของ split set (SETNO<>0) บน Complete (JKBN=4)
         // คัดลอกค่า JYMDS/JYMDE จากแถว master (SETNO=0, JKBN=4) ไปยังทุก split set
         // ของ KMSEQNO เดียวกัน (จำกัดเฉพาะรายการที่กำลัง import อยู่)
@@ -1719,6 +1757,7 @@ begin
       if ErrorCount = 0 then
       begin
         UniConnection.Commit;
+        LastImportOK := True;
         if not IsAutoRun then
           ShowMessage(Format('Successfully imported %d records',
             [ImportCount]));
@@ -1727,6 +1766,7 @@ begin
       else
       begin
         UniConnection.Rollback;
+        LastImportOK := False;
         if not IsAutoRun then
           ShowMessage
             (Format('Import completed with errors. Success: %d, Errors: %d',
@@ -1736,6 +1776,12 @@ begin
       end;
 
   finally
+    // กัน transaction ค้างเปิดกรณี exception หลุดออกนอกลูป (rollback ทั้งชุด)
+    if UniConnection.InTransaction then
+    begin
+      UniConnection.Rollback;
+      LastImportOK := False;
+    end;
     InsertQuery.Free;
     ProgressBar1.Position := 0;
   end;
