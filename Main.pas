@@ -1244,6 +1244,7 @@ var
   Size: DWORD;
   FormatSettings: TFormatSettings;
   MaxJDSEQNO, CountOKRows: Integer;
+  HatubanSEQNO: Integer;
   JMAEDANHValue, JYUJINHValue, JMUJINHValue, JATODANHValue: Integer;
   KIKAICDValue, KIKAINMValue, TANTOCDValue, TANTONMValue, KMSEQNOValue: string;
   YMDSValue, YMDEValue, BUNOValue, BUSEQNOValue, koteiseqnoValue, koteinoValue,
@@ -1603,7 +1604,7 @@ begin
         Jisekibikou := '';
         Tourokuymd := Now;
 
-        // GET PRIMARY KEY : HATUBAN.SEQNO = next-value (ใช้ได้ทันที ไม่ +1)
+        // GET PRIMARY KEY : HATUBAN.SEQNO = last-used (ค่าที่ใช้ล่าสุด ต้อง +1 เพื่อได้เลขใหม่)
         // อ่านแบบ FOR UPDATE เพื่อล็อกแถวออกเลข กัน race condition ระหว่างหลายโปรแกรม/หลาย instance
         InsertQuery.Close;
         InsertQuery.SQL.Text :=
@@ -1615,28 +1616,39 @@ begin
           raise Exception.Create
             ('HATUBAN row (ID=''JISEKIDATA'') not found - cannot issue JDSEQNO');
         end;
-        NewJDSEQNO := InsertQuery.FieldByName('SEQNO').AsInteger;
+        HatubanSEQNO := InsertQuery.FieldByName('SEQNO').AsInteger;
         InsertQuery.Close;
 
-        // SELF-HEALING: ถ้า JISEKIDATA เดินล้ำหน้า HATUBAN อยู่ (สภาพเพี้ยนที่เคยเกิด)
-        // ให้กระโดดไปใช้ MAX(JDSEQNO)+1 แทน เพื่อกันชนคีย์เดิม
+        // เช็คค่าล่าสุดจริงของ JDSEQNO (SELF-HEALING เผื่อ HATUBAN ตามไม่ทัน JISEKIDATA)
         InsertQuery.SQL.Text :=
           'SELECT NVL(MAX(JDSEQNO), 0) AS MaxJDSEQNO FROM JISEKIDATA';
         InsertQuery.Open;
         if not InsertQuery.IsEmpty then
-        begin
-          MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
-          if MaxJDSEQNO >= NewJDSEQNO then
-            NewJDSEQNO := MaxJDSEQNO + 1;
-        end;
+          MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger
+        else
+          MaxJDSEQNO := 0;
         InsertQuery.Close;
+
+        // ยึดค่าที่สูงกว่าระหว่าง HATUBAN.SEQNO กับ MAX(JDSEQNO) แล้ว +1 เพื่อได้เลขใหม่
+        if MaxJDSEQNO > HatubanSEQNO then
+          NewJDSEQNO := MaxJDSEQNO + 1
+        else
+          NewJDSEQNO := HatubanSEQNO + 1;
+
+        // อัปเดต HATUBAN "ก่อน" INSERT — บันทึกว่า NewJDSEQNO คือค่าที่ใช้ล่าสุด (last-used)
+        InsertQuery.SQL.Text :=
+          'UPDATE HATUBAN SET SEQNO = :NewSeq WHERE ID = ''JISEKIDATA''';
+        InsertQuery.ParamByName('NewSeq').AsInteger := NewJDSEQNO;
+        InsertQuery.ExecSQL;
+        if InsertQuery.RowsAffected = 0 then
+          raise Exception.Create
+            ('HATUBAN was not updated (ID=''JISEKIDATA'' missing) - JDSEQNO out of sync');
 
         if KMSEQNOValue <>'' then
         begin
                UpdateAllKanryoFlg(StrtoInt(KMSEQNOValue),0);
         end;
-        // NOTE: UPDATE HATUBAN ย้ายไปทำหลัง INSERT JISEKIDATA สำเร็จ (ในทรานแซกชันเดียวกัน)
-        //       และห้าม Commit กลางลูป ให้ commit/rollback รวมทีเดียวตอนจบ
+        // NOTE: ห้าม Commit กลางลูป ให้ commit/rollback รวมทีเดียวตอนจบ
 
 
 
@@ -1701,16 +1713,6 @@ begin
         InsertQuery.ParamByName('SURYO').AsString := suryoValue;
 
         InsertQuery.ExecSQL;
-
-        // SYNC HATUBAN : ตั้ง SEQNO เป็น next-value = MAX(JDSEQNO)+1 เสมอ (ในทรานแซกชันเดียวกับ INSERT)
-        InsertQuery.SQL.Text :=
-          'UPDATE HATUBAN SET SEQNO = ' +
-          '(SELECT NVL(MAX(JDSEQNO), 0) + 1 FROM JISEKIDATA) ' +
-          'WHERE ID = ''JISEKIDATA''';
-        InsertQuery.ExecSQL;
-        if InsertQuery.RowsAffected = 0 then
-          raise Exception.Create
-            ('HATUBAN was not updated (ID=''JISEKIDATA'' missing) - JDSEQNO out of sync');
 
         // 2026/08/19: Sync JYMDS/JYMDE ของ split set (SETNO<>0) บน Complete (JKBN=4)
         // คัดลอกค่า JYMDS/JYMDE จากแถว master (SETNO=0, JKBN=4) ไปยังทุก split set
